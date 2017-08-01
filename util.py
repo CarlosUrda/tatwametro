@@ -2,11 +2,71 @@
 #!coding=utf-8
 
 """
-Módulo con utilidades para los ejercicios del libro.
+Módulo con utilidades generales.
 """
 
+import requests
 from collections import Sequence
 from numbers import Number
+from claves import MAP_API_KEY
+
+# API's
+SOL_API_URL = "https://api.sunrise-sunset.org/json"
+MAP_API_URL = "https://maps.googleapis.com/maps/api/geocode/json"
+
+
+def obtener_coordenadas(direccion, region = None):
+    """
+    Obtener las coordenadas (latitud, longitud) de una dirección.
+    
+    Argumentos:
+        direccion: direccion a obtener sus coordenadas.
+        region: código de región donde está la dirección solicitada.
+
+    Retorno:
+        Tupla con el par (latitud, longitud)
+        RuntimeError en caso de no obtener resultado de la API. Contiene
+            el tipo de error devuelto por la API.
+    """
+    parametros_url = {"address": direccion, "key": MAP_API_KEY, 
+                      "language": "es"}
+    if region is not None:
+        parametros_url["region"] = region
+
+    res = requests.get(MAP_API_URL, parametros_url)
+    if res["status"] == "OK":
+        return (res["results"][0]["geometry"]["location"]["lat"],
+                res["results"][0]["geometry"]["location"]["lng"])
+
+    raise RuntimeError("Error al acceder a la API de Google: {}"
+                       .format(res["results"]))
+
+
+def obtener_direccion(latitud, longitud):
+    """
+    Obtener direccion a partir de unas coordenadas (latitud, longitud).
+    
+    Argumentos:
+        latitud: latitud de la coordenada.
+        longitud: longitud de la coordenada.
+
+    Retorno:
+        Cadena con la dirección de la coordenada.
+        RuntimeError en caso de no obtener resultado de la API. Contiene
+            el tipo de error devuelto por la API.
+    
+    Mejoras:
+        Tener en cuenta los parámetros result_type y location_type de
+            la API.
+    """
+    latlng = "{}, {}".format(latitud, longitud)
+    res = requests.get(MAP_API_URL, {"latlng": latlng, "key": MAP_API_KEY,
+                                     "language": "es"})
+    if res["status"] == "OK":
+        return res["results"][0]["formatted_address"]
+
+    raise RuntimeError("Error al acceder a la API de Google: {}"
+                       .format(res["results"]))
 
 
 def es_secuencia_numeros(objeto):
