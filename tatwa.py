@@ -5,6 +5,9 @@ Módulo de gestión de tatwas
 """
 
 class Tatwa:
+    """
+    Clase para definir un tatwa en concreto.
+    """
     _tatwas = ("akash", "teja") 
     
     def __init__(self, tatwa):
