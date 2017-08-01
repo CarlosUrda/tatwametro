@@ -6,6 +6,7 @@ Módulo con utilidades generales.
 """
 
 import requests
+import datetime as dt
 from collections import Sequence
 from numbers import Number
 from claves import MAP_API_KEY
@@ -13,18 +14,67 @@ from claves import MAP_API_KEY
 # API's
 SOL_API_URL = "https://api.sunrise-sunset.org/json"
 MAP_API_URL = "https://maps.googleapis.com/maps/api/geocode/json"
+SOL_API_EVENTOS = {"sunrise": "salida", "sunset": "puesta", 
+                   "solar_noon": "mediodia", 
+                   "civil_twilight_begin": "amanecer_civil",
+                   "civil_twilight_end": "ocaso_civil",
+                   "nautical_twilight_begin": "amanecer_nautico",
+                   "nautical_twilight_end": "ocaso_nautico",
+                   "astronomical_twilight_begin": "amanecer_astronomico",
+                   "astronomical_twilight_end": "ocaso_astronomico"}
+
+
+def obtener_horas_sol(latitud, longitud, fecha = None):
+    """
+    Obtener los datos de las horas de la puesta, salida y crepúsculo
+    del sol usando la API sunrise-sunset.org.
+
+    Argumentos:
+        latitud: latitud donde obtener las horas del sol.
+        longitud: longitud donde obtener las horas del sol.
+        fecha: día en el cual obtener las horas del sol. Tiene que estar
+            en formato datetime.date. Si es None o no se pasa ningún
+            valor, se toma la fecha actual.
+    Retorno:
+        Diccionario con las horas en formato datetime.time de cada
+            evento del sol.
+    
+    Excepciones:
+        RuntimeError en caso de no obtener resultado de la API. Contiene
+            el tipo de error devuelto por la API.
+    """
+    parametros_url = {"lat": latitud, "lng": longitud}
+    if fecha is not None:
+        parametros_url["date"] = fecha.strftime("%Y-%m-%d")
+    
+    res = requests.get(SOL_API_URL, parametros_url)
+    if res["status"] != "OK":
+        raise RuntimeError("Error API del Sol: {}".format(res["results"]))
+  
+    horas_sol = dict()
+    for evento_ing, evento_esp in SOL_API_EVENTOS.items():
+        fecha_evento = dt.datetime.strptime(res["results"][evento_ing], 
+                                            "%I:%M:%S %p")
+        horas_sol[evento_esp] = dt.time(fecha_evento.hour, fecha_evento.minute,
+                                        fecha_evento.second)
+
+    return horas_sol
 
 
 def obtener_coordenadas(direccion, region = None):
     """
-    Obtener las coordenadas (latitud, longitud) de una dirección.
+    Obtener las coordenadas (latitud, longitud) de una dirección
+        usando la API Google Maps.
     
     Argumentos:
         direccion: direccion a obtener sus coordenadas.
         region: código de región donde está la dirección solicitada.
+            En caso de no pasar nada, no se tendrá en cuenta.
 
     Retorno:
         Tupla con el par (latitud, longitud)
+
+    Excepciones:
         RuntimeError en caso de no obtener resultado de la API. Contiene
             el tipo de error devuelto por la API.
     """
@@ -38,13 +88,13 @@ def obtener_coordenadas(direccion, region = None):
         return (res["results"][0]["geometry"]["location"]["lat"],
                 res["results"][0]["geometry"]["location"]["lng"])
 
-    raise RuntimeError("Error al acceder a la API de Google: {}"
-                       .format(res["results"]))
+    raise RuntimeError("Error API de Google: {}".format(res["status"]))
 
 
 def obtener_direccion(latitud, longitud):
     """
-    Obtener direccion a partir de unas coordenadas (latitud, longitud).
+    Obtener direccion a partir de unas coordenadas (latitud, longitud)
+        usando la API Google Maps.
     
     Argumentos:
         latitud: latitud de la coordenada.
@@ -65,8 +115,7 @@ def obtener_direccion(latitud, longitud):
     if res["status"] == "OK":
         return res["results"][0]["formatted_address"]
 
-    raise RuntimeError("Error al acceder a la API de Google: {}"
-                       .format(res["results"]))
+    raise RuntimeError("Error API de Google: {}".format(res["status"]))
 
 
 def es_secuencia_numeros(objeto):
