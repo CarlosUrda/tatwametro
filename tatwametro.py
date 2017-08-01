@@ -5,10 +5,6 @@
 Programa para calcular tatwas
 """
 
-SOL_API_URL = "https://api.sunrise-sunset.org/json"
-MAP_API_URL = "https://maps.googleapis.com/maps/api/geocode/json"
-
-import requests
 import util
 from ast import literal_eval
 import time

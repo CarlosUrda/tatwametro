@@ -24,7 +24,7 @@ SOL_API_EVENTOS = {"sunrise": "salida", "sunset": "puesta",
                    "astronomical_twilight_end": "ocaso_astronomico"}
 
 
-def obtener_horas_sol(latitud, longitud, fecha = None):
+def obtener_horas_eventos_sol(latitud, longitud, fecha = None):
     """
     Obtener los datos de las horas de la puesta, salida y crepúsculo
     del sol usando la API sunrise-sunset.org.
@@ -51,20 +51,21 @@ def obtener_horas_sol(latitud, longitud, fecha = None):
     if res["status"] != "OK":
         raise RuntimeError("Error API del Sol: {}".format(res["results"]))
   
-    horas_sol = dict()
+    horas_eventos_sol = dict()
     for evento_ing, evento_esp in SOL_API_EVENTOS.items():
         fecha_evento = dt.datetime.strptime(res["results"][evento_ing], 
                                             "%I:%M:%S %p")
-        horas_sol[evento_esp] = dt.time(fecha_evento.hour, fecha_evento.minute,
-                                        fecha_evento.second)
+        horas_eventos_sol[evento_esp] = dt.time(fecha_evento.hour, 
+                                                fecha_evento.minute,
+                                                fecha_evento.second)
+    return horas_eventos_sol
 
-    return horas_sol
 
 
 def obtener_coordenadas(direccion, region = None):
     """
     Obtener las coordenadas (latitud, longitud) de una dirección
-        usando la API Google Maps.
+    usando la API Google Maps.
     
     Argumentos:
         direccion: direccion a obtener sus coordenadas.
@@ -91,10 +92,11 @@ def obtener_coordenadas(direccion, region = None):
     raise RuntimeError("Error API de Google: {}".format(res["status"]))
 
 
+
 def obtener_direccion(latitud, longitud):
     """
     Obtener direccion a partir de unas coordenadas (latitud, longitud)
-        usando la API Google Maps.
+    usando la API Google Maps.
     
     Argumentos:
         latitud: latitud de la coordenada.
@@ -118,6 +120,7 @@ def obtener_direccion(latitud, longitud):
     raise RuntimeError("Error API de Google: {}".format(res["status"]))
 
 
+
 def es_secuencia_numeros(objeto):
     """
     Comprobar si un objeto es una secuencia de números.
@@ -132,6 +135,7 @@ def es_secuencia_numeros(objeto):
            all(isinstance(e, Number) for e in objeto)
 
 
+
 def es_iterable(objeto):
     """
     Comprobar si un objeto es de tipo iterable
@@ -143,6 +147,7 @@ def es_iterable(objeto):
         True o False si el objeto es o no iterable.
     """
     return hasattr(objeto, "__getitem__") or hasattr(objeto, "__iter__")
+
 
 
 def obtener_dato(mensaje, evaluar=None, comprobar=None, fin=None):
