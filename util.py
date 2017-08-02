@@ -5,6 +5,7 @@
 Módulo con utilidades generales.
 """
 
+# imports
 import requests
 import datetime as dt
 from collections import Sequence
@@ -22,6 +23,36 @@ SOL_API_EVENTOS = {"sunrise": "salida", "sunset": "puesta",
                    "nautical_twilight_end": "ocaso_nautico",
                    "astronomical_twilight_begin": "amanecer_astronomico",
                    "astronomical_twilight_end": "ocaso_astronomico"}
+
+# Rango coordenadas API Google MAPS
+RANGO_LAT = {"max": 85,  "min": -85}
+RANGO_LNG = {"max": 180, "min": -180}
+
+
+def comprobar_coordenadas(latitud, longitud):
+    """
+    Comprobar si los datos latitud y longitud de unas coordenadas son
+    correctos.
+
+    Argumentos:
+        latitud: valor de la latitud a comprobar.
+        longitud: valor de la longitud a comprobar.
+
+    Excepciones:
+        ValueError si los valores de las coordenadas están fuera de 
+            rango.
+        TypeError si los tipos de datos de las coordenadas son
+            incorrectos.
+    """
+    if not isinstance(latitud, (float, int)):
+        raise TypeError("La latitud no es float o int")
+    if not isinstance(longitud, (float, int)):
+        raise TypeError("La longitud no es float o int")
+
+    if not RANGO_LAT["min"] <= latitud <= RANGO_LAT["max"]:
+        raise ValueError("Valor de latitud fuera de rango")
+    if not RANGO_LNG["min"] <= longitud <= RANGO_LNG["max"]:
+        raise ValueError("Valor de longitud fuera de rango")
 
 
 def obtener_horas_eventos_sol(latitud, longitud, fecha = None):
@@ -49,7 +80,8 @@ def obtener_horas_eventos_sol(latitud, longitud, fecha = None):
     
     res = requests.get(SOL_API_URL, parametros_url)
     if res["status"] != "OK":
-        raise RuntimeError("Error API del Sol: {}".format(res["results"]))
+        raise RuntimeError("Error API sunrise-sunset.org: {}"
+                           .format(res["results"]))
   
     horas_eventos_sol = dict()
     for evento_ing, evento_esp in SOL_API_EVENTOS.items():

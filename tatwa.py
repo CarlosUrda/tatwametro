@@ -13,7 +13,7 @@ class Tatwa:
     _tatwas = ("akash", "teja") 
     
     def __init__(self, tatwa):
-       self.tatwa = tatwa
+       self._tatwa = tatwa
         
     @property
     def tatwa(self):
@@ -28,22 +28,22 @@ class Tatwa:
         
 
 
-class TatwaEntorno:
-    def __init__(self, 
-    hora_tatwa = {"hora": 0, "min": 0, "actual": True}            # Horas, minutos
-    hora_salida_sol = {"hora": 0, "min": 0}
-    hora_puesta_sol
-
+class EntornoTatwas:
+    """
+    Clase con todos los datos y operaciones necesarias para el cálculo
+    de tatwas
+    """
     def __init__(self):
         """
         Constructor
         """
+        self._coordenadas = None
+        self._fecha = None
+        self._direccion = None
+        self._region = None
+        self._hora = None
+        self._horas_eventos_sol = None
 
-    def inicializar():
-        """
-        Inicializar todos los parámetros del entorno de tatwas tomando la
-        posición y fecha actuales.
-        """
 
     @property
     def localizacion(self):
@@ -58,7 +58,7 @@ class TatwaEntorno:
                + "" if _region is None else "({})".format(self._region)
 
 
-    def fijar_localizacion(self, direccion, region = None):
+    def fijar_localizacion(self, direccion, region = None, ):
         """
         Guardar internamente la dirección y región de la localización.
         Además obtiene las coordenadas de la misma y actualiza el atributo
@@ -74,8 +74,9 @@ class TatwaEntorno:
             RuntimeError en caso de no obtener resultado de la API. Contiene
              el tipo de error devuelto por la API.
         """
+        try:
         coordenadas = obtener_coordenadas(direccion, region)
-        self.fijar_coordenadas_no_localizar(coordenadas[0], coordenadas[1])
+        self.fijar_coordenadas(coordenadas[0], coordenadas[1], False)
                                               
         self._direccion = direccion        
         self._region = region
@@ -93,58 +94,106 @@ class TatwaEntorno:
         return self._coordenadas["lat"], self._coordenadas["lng"]
 
 
-    def fijar_coordenadas_localizar(self, latitud, longitud):
+    def fijar_coordenadas(self, lat, lng, localizable = True, horas_sol = True):
         """
         Actualiza internamente las coordenadas del lugar donde calcular
-        los tatwas. Además, obtiene la dirección de dichas coordenadas
-        guardándola como localización interna.
+        los tatwas. También de manera opcional actualiza la dirección
+        de localización y las horas de los eventos del sol a partir de
+        las coordenadas mediante API's. 
 
         Argumentos:
-            latitud: latitud de la coordenada a fijar.
-            longitud: longitud de la coordenada a fijar.
+            lat: latitud de la coordenada a fijar.
+            lng: longitud de la coordenada a fijar.
+            localizable: flag para actualizar la dirección de
+                localización a partir de las coordenadas. Si es True
+                se usa la API Google Maps para obtener la dirección.
+            sol: flag para actualizar las horas de los eventos del sol.
+                Si es True se usa la API para obtener las horas de los 
+                eventos del sol.
 
         Excepciones:
-            RuntimeError en caso de no obtener resultado de la API. Contiene
-                el tipo de error devuelto por la API.
+            ValueError o TypeError si los valores de las coordenadas
+                (latitud, longitud) son incorrectos. No se modifican
+                las coordinadas internas.
+            RuntimeError en caso de no obtener dirección de localización
+                o las horas del sol de la correspondiente API. 
         """
-        direccion = obtener_direccion(latitud, longitud)
+        comprobar_coordenadas(lat, lng)
 
-        self.fijar_coordenadas_no_localizar(latitud, longitud)
-
-        self._direccion = direccion
         self._region = None
+        self._direccion = obtener_direccion(lat, lng) if localizable else None
+
+        self._coordenadas = {"lat": lat, "lng": lng}
+        self._horas_eventos_sol = None
+
+#        if horas_sol:
+#            try:
+#                self.actualizar_horas_eventos_sol()
+#            except (RuntimeError, ValueError) as err:
+#                print(err)
+#                raise RuntimeError("Error al actualizar las horas de"
+#                                   " los eventos del sol.")
+#        else:
+#            self._horas_eventos_sol = None
 
 
-    def fijar_coordenadas_no_localizar(self, latitud, longitud):
+    def actualizar_horas_eventos_sol(self):
         """
-        Actualiza internamente las coordenadas del lugar donde calcular
-        los tatwas. No obtiene la dirección de dichas coordenadas ni
-        actualiza internamente la localización.
-
-        Argumentos:
-            latitud: latitud de la coordenada a fijar.
-            longitud: longitud de la coordenada a fijar.
+        Actualizar las horas de los eventos del sol. Para poder obtener
+        las horas es necesario que las coordenadas y la fecha estén
+        fijados internamente.
 
         Excepciones:
-            RuntimeError en caso de no obtener resultado de la API. Contiene
-                el tipo de error devuelto por la API.
+            ValueError si la fecha o las coordenadas no han sido fijadas.
+            RuntimeError si ocurre algún error al intentar obtener las
+               horas de los eventos.
         """
-        self._horas_eventos_sol = obtener_horas_eventos_sol(latitud, longitud, 
-                                                            self._fecha)
+        if fecha is None:
+            raise ValueError("No se ha asignado un valor para la fecha")
+        elif self._coordenadas is None:
+            raise ValueError("No se han fijado las coordenadas")
+    
+        try:
+            self._horas_eventos_sol = 
+                obtener_horas_eventos_sol(self._coordenadas["lat"], 
+                                          self._coordenadas["lng"], 
+                                          self._fecha)
+        except RuntimeError as err:
+            print(err)
+            raise RuntimeError("Error al llamar a la función "
+                               "obtener_horas_eventos_sol().")
 
-        # Sincronización entre las horas del sol, coordenadas y fecha.
-        self._sincronizacion = True
 
-        self._coordenadas = {"lat": latitud, "lng": longitud}
-        self._direccion = None
-        self._region = None
+    def calcular_tatwas(self):
+        """
+        Calcular los tatwas en la a partir de las horas de los eventos
+        del sol y la hora concreta a obtenerlos.
+
+        Excepciones:
+            ValueError si la hora para el cálculo de tatwas o las horas
+                de eventos del sol no han sido fijadas.
+        """
+        if self._hora is None:
+            raise ValueError("No se ha asignado una hora a calcular.")
+        elif self._horas_eventos_sol is None:
+            raise ValueError("No se han obtenido las horas de eventos del sol"))
+    
+        try:
+            self._horas_eventos_sol = 
+                obtener_horas_eventos_sol(self._coordenadas["lat"], 
+                                          self._coordenadas["lng"], 
+                                          self._fecha)
+        except RuntimeError as err:
+            print(err)
+            raise RuntimeError("Error al llamar a la función "
+                               "obtener_horas_eventos_sol().")
 
 
     @property
     def fecha(self):
         """
-        Getter que obtiene la fecha fijada para calcular los tatwas. La
-        fecha es de tipo datetime.date
+        Getter que obtiene la fecha fijada en la cual se calcularán los
+        tatwas. La fecha es de tipo datetime.date
 
         Retorno:
             Valor datetime.date con la fecha fijada.
@@ -153,24 +202,95 @@ class TatwaEntorno:
         return self._fecha
 
 
-    def fijar_fecha(self, dia, mes, anno):
+    def fijar_fecha(self, dia = None, mes = 1, anno = 1900, horas_sol = True):
         """
-        Modificar internamente la fecha que se usará para calcular los
+        Modificar internamente la fecha en la cual se calcularán los
         tatwas.
 
         Argumentos:
-            dia: día de la fecha.
+            dia: día de la fecha. Si es None, se toma la fecha actual.
             mes: número de mes de la fecha.
             anno: año de la fecha.
+            horas_sol: flag para obtener las horas de los eventos del
+                sol. Si es True y la fecha interna está fijada, se usa
+                la API para obtener las horas de los eventos del sol.
+
+        Excepciones:
+            ValueError o TypeError si los argumentos son incorrectos.
+            RuntimeError si ocurre algún error al intentar obtener las
+            horas de los eventos del sol.
+        """
+        if dia is None:
+            self._fecha = dt.date.today()
+        else:
+            try:
+                self._fecha = dt.date(anno, mes, dia)    
+            except ValueError as err:
+                print(err)
+                raise ValueError("Error al crear tipo datetime.date")
+            except TypeError as err:
+                print(err)
+                raise TypeError("Error al crear tipo datetime.date")
+            
+         self._horas_eventos_sol = None
+
+#        if horas_sol:
+#            try:
+#                self.actualizar_horas_eventos_sol()
+#            except (RuntimeError, ValueError) as err:
+#                print(err)
+#                raise RuntimeError("Error al actualizar las horas de"
+#                                   " los eventos del sol.")
+#        else:
+#            self._horas_eventos_sol = None
+
+
+    @property
+    def hora(self):
+        """
+        Getter que obtiene la hora en la cual se calcularán los tatwas.
+        La hora es de tipo datetime.time
+
+        Retorno:
+            Valor datetime.time con la hora establecida.
+        """
+        return self._hora
+
+
+    def fijar_hora(self, horas = None, minutos = 0, segundos = 0, 
+                   horas_sol = True):
+        """
+        Modificar internamente la hora en la cual se calcularán los
+        tatwas.
+
+        Argumentos:
+            horas: valor de las horas de la hora. Si es None se toma
+                la hora actual.
+            minutos: valor de los minutos de la hora. 
+            segundos: valor de los segundos de la hora. Por defecto 0. 
+            horas_sol: flag para obtener las horas de los eventos del
+                sol. Si es True y la fecha interna está fijada, se usa
+                la API para obtener las horas de los eventos del sol.
 
         Excepciones:
             ValueError o TypeError si los argumentos son incorrectos.
         """
-        try:
-            self._fecha = dt.date(anno, mes, dia)    
-        except ValueError as err:
-            print(err)
-            raise ValueError("Error al crear tipo datetime.date")
-        except TypeError as err:
-            print(err)
-            raise TypeError("Error al crear tipo datetime.date")
+        if horas is None:
+            self._hora = dt.datetime.now().time()
+        else:
+            try:
+                self._hora = dt.time(horas, minutos, segundos)    
+            except ValueError as err:
+                print(err)
+                raise ValueError("Error al crear tipo datetime.time.")
+            except TypeError as err:
+                print(err)
+            raise TypeError("Error al crear tipo datetime.time.")
+
+        if horas_sol:
+            try:
+                self.calcular_tatwas()
+            except as err:
+                print(err)
+                raise RuntimeError("Error al intentar calcular los tatwas")
+                
