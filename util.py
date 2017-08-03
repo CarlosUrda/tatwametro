@@ -15,14 +15,6 @@ from claves import MAP_API_KEY
 # API's
 SOL_API_URL = "https://api.sunrise-sunset.org/json"
 MAP_API_URL = "https://maps.googleapis.com/maps/api/geocode/json"
-SOL_API_EVENTOS = {"sunrise": "salida", "sunset": "puesta", 
-                   "solar_noon": "mediodia", 
-                   "civil_twilight_begin": "amanecer_civil",
-                   "civil_twilight_end": "ocaso_civil",
-                   "nautical_twilight_begin": "amanecer_nautico",
-                   "nautical_twilight_end": "ocaso_nautico",
-                   "astronomical_twilight_begin": "amanecer_astronomico",
-                   "astronomical_twilight_end": "ocaso_astronomico"}
 
 # Rango coordenadas API Google MAPS
 RANGO_LAT = {"max": 85,  "min": -85}
@@ -82,14 +74,13 @@ def obtener_horas_eventos_sol(latitud, longitud, fecha = None):
     if res["status"] != "OK":
         raise RuntimeError("Error API sunrise-sunset.org: {}"
                            .format(res["results"]))
-  
-    horas_eventos_sol = dict()
-    for evento_ing, evento_esp in SOL_API_EVENTOS.items():
-        fecha_evento = dt.datetime.strptime(res["results"][evento_ing], 
-                                            "%I:%M:%S %p")
-        horas_eventos_sol[evento_esp] = dt.time(fecha_evento.hour, 
-                                                fecha_evento.minute,
-                                                fecha_evento.second)
+
+    horas_eventos_sol = \ 
+        {evento: dt.datetime.strptime(hora, "%I:%M:%S %p").time() 
+         for evento, hora in res["results"].items() if evento != "day_length"}
+    horas_eventos_sol["day_length"] = 
+        dt.datetime.strptime(res["results"]["day_length"], "%H:%M:%S").time()
+          
     return horas_eventos_sol
 
 
