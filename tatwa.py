@@ -11,22 +11,153 @@ class Tatwa:
     """
     Clase para definir un tatwa en concreto.
     """
-    _tatwas = ("akash", "teja") 
+    SEGUNDOS_POR_TATWA = 24 * 60
+    NOMBRES_TATWAS = ("akash", "vayu", "tejas", "prithvi", "apas") 
     
-    def __init__(self, tatwa):
-       self._tatwa = tatwa
+    def __init__(self, nombre_tatwa):
+       self.nombre_tatwa = nombre_tatwa
         
     @property
-    def tatwa(self):
-        return self._tatwa
+    def nombre_tatwa(self):
+        """
+        Getter del atributo nombre_tatwa
+        """
+        return self._nombre_tatwa
 
     @tatwa.setter
-    def tatwa(self, tatwa):
-        tatwa = tatwa.lower()
-        if tatwa not in _tatwas:
-            raise ValueError("Valor incorrecto del tatwa")
-        self._tatwa = tatwa
+    def nombre_tatwa(self, nombre_tatwa):
+        """
+        Setter del atributo nombre_tatwa
+        """
+        if not isinstance(nombre_tatwa, str):
+            raise TypeError("El nombre del tatwa debe ser un str.")
+
+        nombre_tatwa = nombre_tatwa.lower()
+        if nombre_tatwa not in NOMBRES_TATWAS:
+            raise ValueError("Valor incorrecto del nombre del tatwa")
+        self._nombre_tatwa = nombre_tatwa
+
+    
+    def _indice(self):
+        """
+        Obtener el índice del tatwa en el orden de los tatwas.
+        """
+        return NOMBRES_TATWAS.index(self._nombre_tatwa)
+
+
+    @property
+    def posicion(self):
+        """
+        Getter para obtener el número de posición en el orden de
+        los tatwas.
+        """
+        return self._indice() + 1
+
+
+    def __str__(self):
+        return self._nombre_tatwa.capitalize()
         
+
+    def distancia(self, tatwa):
+        """
+        Calcular la distancia relativa entre las posiciones de dos 
+        tatwas.
+
+        Argumento:
+            tatwa: Tatwa o nombre de tatwa a calcular la diferencia de
+                posiciones con el tatwa self.
+
+        Retorno:
+            Número de posiciones existentes entre los dos tatwas. 
+                Partiendo del tatwa self se cuenta el número de 
+                posiciones existentes hasta el tatwa parámetro.
+
+        Excepciones:
+            TypeError si el argumento no es un Tatwa o un str.
+            ValueError si el argumento es str pero no es un nombre de
+                tatwa válido.
+        """
+        if isinstance(tatwa, Tatwa):
+            return tatwa.indice() - self.indice() 
+        if isinstance(tatwa, str):
+            try:
+                indice = NOMBRES_TATWAS.index(tatwa)
+            except ValueError:
+                raise ValueError("Nombre de tatwa a comprar incorrecto.")
+            else:
+                return indice - self._indice()
+        raise TypeError("Tatwa comparado con un tipo de dato incorrecto.")
+
+   
+    # Operadores de suma y resta 
+     
+    def __add__(self, entero):
+        """
+        Operador suma para obtener el tatwa de una posición concreta
+        relativa a partir de este tatwa. 
+        
+        Argumentos:
+            entero: posición relativa del siguente tatwa a obtener.
+
+        Retorno:
+            Tatwa con la posición relativa correspondiente al entero
+            a partir del tatwa self.
+        """
+        if not isinstance(entero, int):
+            return NotImplemented
+        
+        indice = (self._indice() + entero) % len(NOMBRES_TATWAS)
+        return Tatwa(NOMBRES_TATWAS[indice])
+
+    __radd__ = __add__
+
+    def __sub__(self, entero):
+        """
+        Operador resta para obtener el tatwa de una posición concreta
+        relativa a partir de este tatwa. 
+        
+        Argumentos:
+            entero: posición relativa del siguente tatwa a obtener.
+
+        Retorno:
+            Tatwa con la posición relativa correspondiente al entero
+            a partir del tatwa self.
+        """
+        return self + -entero
+
+
+    # Operadores de comparación
+
+    def __eq__(self, tatwa):
+        try:
+            return self.distancia(tatwa) == 0
+        except TypeError:
+            return NotImplemented
+
+    def __gt__(self, tatwa):
+        try:
+            return self.distancia(tatwa) < 0
+        except TypeError:
+            return NotImplemented
+
+    def __ge__(self, tatwa):
+        try:
+            return self.distancia(tatwa) <= 0
+        except TypeError:
+            return NotImplemented
+
+    def __lt__(self, tatwa):
+        try:
+            return self.distancia(tatwa) > 0
+        except TypeError:
+            return NotImplemented
+
+    def __le__(self, tatwa):
+        try:
+            return self.distancia(tatwa) >= 0
+        except TypeError:
+            return NotImplemented
+
 
 
 class EntornoTatwas:
@@ -81,7 +212,7 @@ class EntornoTatwas:
             return None
 
         region = " ({})".format(self._region) if self._region else ""
-        return "{0}{1}".format(self._direccion, region)  
+        return "{}{}".format(self._direccion, region)  
 
 
     @property
