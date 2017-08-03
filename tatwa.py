@@ -5,18 +5,41 @@ Módulo de gestión de tatwas
 """
 
 import datetime as dt
+import util
 
 
 class Tatwa:
     """
     Clase para definir un tatwa en concreto.
     """
+    
+    # Constantes de clase
     SEGUNDOS_POR_TATWA = 24 * 60
     NOMBRES_TATWAS = ("akash", "vayu", "tejas", "prithvi", "apas") 
     
-    def __init__(self, nombre_tatwa):
-       self.nombre_tatwa = nombre_tatwa
+
+    def __init__(self, tatwa):
+        """
+        Constructor.
+
+        Argumentos:
+            tatwa: nombre del tatwa o posición (>= 1) del tatwa en el 
+                ciclo de tatwas.
+
+        Excepciones:
+            TypeError si el argumento no es str o int.
+            ValuError si la posición no es > 0. 
+
+        """
+        if isinstance(tatwa, int):
+            if tatwa < 1:
+                raise ValueError("La posición debe ser > 0")
+            self._nombre_tatwa = NOMBRES_TATWAS[(tatwa - 1) 
+                                                % len(NOMBRES_TATWAS)]
+        else:
+            self.nombre_tatwa = nombre_tatwa
         
+
     @property
     def nombre_tatwa(self):
         """
@@ -40,7 +63,7 @@ class Tatwa:
     
     def _indice(self):
         """
-        Obtener el índice del tatwa en el orden de los tatwas.
+        Obtener el índice del tatwa en el el ciclo de los tatwas.
         """
         return NOMBRES_TATWAS.index(self._nombre_tatwa)
 
@@ -48,7 +71,7 @@ class Tatwa:
     @property
     def posicion(self):
         """
-        Getter para obtener el número de posición en el orden de
+        Getter para obtener el número de posición en el ciclo de
         los tatwas.
         """
         return self._indice() + 1
@@ -78,12 +101,12 @@ class Tatwa:
                 tatwa válido.
         """
         if isinstance(tatwa, Tatwa):
-            return tatwa.indice() - self.indice() 
+            return tatwa.indice() - self._indice() 
         if isinstance(tatwa, str):
             try:
                 indice = NOMBRES_TATWAS.index(tatwa)
             except ValueError:
-                raise ValueError("Nombre de tatwa a comprar incorrecto.")
+                raise ValueError("Nombre de argumento tatwa incorrecto.")
             else:
                 return indice - self._indice()
         raise TypeError("Tatwa comparado con un tipo de dato incorrecto.")
@@ -175,6 +198,9 @@ class EntornoTatwas:
          "astronomical_twilight_begin": "amanecer_astronomico",
          "astronomical_twilight_end": "ocaso_astronomico"}
 
+    _EVENTOS_SOL_PARA_TATWAS = ("salida", "amanecer_civil", 
+                                "amanecer_nautico", "amanecer_astronomico")
+
     EVENTOS_SOL_DESCRIPCION = \
         {"salida": "salida del sol", "puesta": "puesta del sol",
          "mediodia": "sol del mediodía", 
@@ -254,7 +280,7 @@ class EntornoTatwas:
             las coordenas.
         """
         try:
-            coordenadas = obtener_coordenadas(direccion, region)
+            coordenadas = util.obtener_coordenadas(direccion, region)
         except RuntimeError as err:
             print(err)
             raise RuntimeError("Error al intentar obtener las coordenadas")
@@ -301,11 +327,11 @@ class EntornoTatwas:
             RuntimeError en caso de haber error al obtener dirección 
                 de localización. 
         """
-        comprobar_coordenadas(latitud, longitud)
+        util.comprobar_coordenadas(latitud, longitud)
 
         if localizable:
             try:
-                self._direccion = obtener_direccion(latitud, longitud)
+                self._direccion = util.obtener_direccion(latitud, longitud)
             except RuntimeError as err:
                 print(err)
                 raise RuntimeError("Error al obtener la dirección a partir "
@@ -379,16 +405,16 @@ class EntornoTatwas:
     
         try:
             horas_eventos_sol = 
-                obtener_horas_eventos_sol(self._coordenadas["lat"], 
-                                          self._coordenadas["lng"], 
-                                          self._fecha)
+                util.obtener_horas_eventos_sol(self._coordenadas["lat"], 
+                                               self._coordenadas["lng"], 
+                                               self._fecha)
         except RuntimeError as err:
             print(err)
             raise RuntimeError("Error al obtener las horas de eventos del sol")
-
-        if len(horas_eventos_sol) == 0:
-            raise RuntimeError("La lista obtenida de horas de los eventos del"
-                               " sol está vacía.")
+        else:
+            if len(horas_eventos_sol) == 0:
+                raise RuntimeError("La lista obtenida de horas de los eventos"
+                                   " del sol está vacía.")
               
         self._horas_eventos_sol = \ 
             {_EVENTOS_SOL_ING_ESP[evento_ing]: hora 
@@ -402,14 +428,29 @@ class EntornoTatwas:
 
         Excepciones:
             ValueError si la hora para el cálculo de tatwas o las horas
-                de eventos del sol no han sido fijadas.
+                de eventos del sol para tatwas no han sido fijadas.
         """
         if self._hora is None:
             raise ValueError("No se ha asignado una hora a calcular.")
         elif self._horas_eventos_sol is None:
             raise ValueError("No se han obtenido las horas de eventos del sol"))
     
-        # Cálculo.
+        self._tatwas = dict()
+
+        for evento in _EVENTOS_SOL_PARA_TATWAS:
+            hora_evento = self._horas_eventos_sol.get(evento)
+            if hora_evento is None:
+                continue
+
+            segundos = -util.restar_horas_sg(hora_evento, self._hora, 
+                                             self._hora >= hora_evento)
+            posicion = segundos // Tatwa.SEGUNDOS_POR_TATWA + 1
+            self._tatwas[evento] = Tatwa(posicion)
+
+        if len(self._tatwas) == 0:
+            self._tatwas = None
+            raise ValueError("No hay ninguna hora de eventos para calcular"
+                             " tatwas: {}".format(_EVENTOS_SOL_PARA_TATWAS))
 
 
     @property

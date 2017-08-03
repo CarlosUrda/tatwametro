@@ -21,6 +21,37 @@ RANGO_LAT = {"max": 85,  "min": -85}
 RANGO_LNG = {"max": 180, "min": -180}
 
 
+def restar_horas_sg(hora1, hora2, es_mismo_dia = True):
+    """
+    Calcular la diferencia en segundos entre dos horas. Es similar a
+    realizar hora1 - hora2. No se tienen en cuenta los microsegundos,
+    solo las horas, minutos y segundos.
+
+    Argumentos:
+        hora1: primer operando hora. Es de tipo datetime.time.
+        hora2: segundo operando hora. Es de tipo datetime.time.
+        es_mismo_dia: True hora2 pertenecen al mismo día que hora1. 
+            False si hora2 pertenece al día siguiente que hora1.
+
+    Retorno:
+        Segundos de diferencia entre las dos horas.
+
+    Excepciones:
+        TypeError si alguno de los argumentos no es datetime.time.
+    """
+    if not isinstance(hora1, dt.time):
+        raise TypeError("El primer argumento no es de tipo datetime.time")
+    if not isinstance(hora2, dt.time):
+        raise TypeError("El segundo argumento no es de tipo datetime.time")
+
+    segundos1 = hora1.hour * 3600 + hora1.minute * 60 + hora1.second 
+    segundos2 = hora2.hour * 3600 + hora2.minute * 60 + hora2.second 
+    segundos_por_dia = 24 * 3600
+
+    return segundos1 - segundos2 - (0 if es_mismo_dia else segundos_por_dia)
+
+
+
 def comprobar_coordenadas(latitud, longitud):
     """
     Comprobar si los datos latitud y longitud de unas coordenadas son
