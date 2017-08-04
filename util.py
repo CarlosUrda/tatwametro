@@ -160,8 +160,9 @@ def obtener_horas_eventos_sol(latitud, longitud, fecha_dt = None):
             tipo datetime.date. Si es None se toma la fecha actual.
     
     Retorno:
-        Diccionario con las horas en formato datetime.time de cada
-            evento del sol.
+        Diccionario con las horas de cada evento del sol en formato 
+            datetime.time, excepto  "day_length" que tiene formato 
+            datetime.timdelta. 
     
     Excepciones:
         RuntimeError en caso de no obtener resultado de la API. Contiene
@@ -173,7 +174,7 @@ def obtener_horas_eventos_sol(latitud, longitud, fecha_dt = None):
     if not isinstance(fecha_dt, dt.date) and fecha_dt is not None:
         raise TypeError("La fecha no es de tipo datetime.date")
 
-    parametros_url = {"lat": latitud, "lng": longitud}
+    parametros_url = {"lat": latitud, "lng": longitud, "formatted": 0}
     if fecha_dt is not None:
         parametros_url["date"] = fecha_dt.strftime("%Y-%m-%d")
 
@@ -183,20 +184,18 @@ def obtener_horas_eventos_sol(latitud, longitud, fecha_dt = None):
                            .format(res["status"]))
 
     horas_eventos_sol = dict()
-    for evento, hora_str in res["results"].items():
+    for evento, hora_utc in res["results"].items():
         if evento == "day_length":
-            horas_eventos_sol["day_length"] = \
-                dt.datetime.strptime(hora_str, "%H:%M:%S").time()
+            horas_eventos_sol["day_length"] = dt.timedelta(seconds=hora_utc)
             continue
 
-        hora_tm = dt.datetime.strptime(hora_str, "%I:%M:%S %p").time() 
-        horas_eventos_sol[evento] = hora_tm
-
-#        fecha_dtt = dt.datetime.combine(fecha_dt, hora_tm)
-#        segundos_desfase = \
-#            _obtener_desfase_horario(latitud, longitud, fecha_dtt)
-#        desfase_td = dt.timedelta(seconds=segundos_desfase)
-#        horas_eventos_sol[evento] = (fecha_dtt + desfase_td).time()
+        fecha_hora_utc = dt.datetime.strptime(hora_utc, 
+                                              "%Y-%m-%dT%H:%M:%S+00:00")
+        segundos_desfase = _obtener_desfase_horario(latitud, longitud, 
+                                                    fecha_hora_utc)
+        segundos_desfase_td = dt.timedelta(seconds=segundos_desfase)
+        horas_eventos_sol[evento] = (fecha_hora_utc 
+                                     + segundos_desfase_td).time()
 
     return horas_eventos_sol
 
