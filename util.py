@@ -8,16 +8,17 @@ Módulo con utilidades generales.
 # imports
 import requests
 import datetime as dt
+import claves as clv
 from collections import Sequence
 from numbers import Number
-from claves import MAP_API_KEY
 
 # API's
-SOL_API_URL = "https://api.sunrise-sunset.org/json"
-MAP_API_URL = "https://maps.googleapis.com/maps/api/geocode/json"
+SOL_API_URL      = "https://api.sunrise-sunset.org/json"
+GEOCODE_API_URL  = "https://maps.googleapis.com/maps/api/geocode/json"
+TIMEZONE_API_URL = "https://maps.googleapis.com/maps/api/timezone/json"
 
 # Rango coordenadas API Google MAPS
-RANGO_LAT = {"max": 85,  "min": -85}
+RANGO_LAT = {"max": 90,  "min": -90}
 RANGO_LNG = {"max": 180, "min": -180}
 
 
@@ -73,22 +74,91 @@ def comprobar_coordenadas(latitud, longitud):
         raise TypeError("La longitud no es float o int")
 
     if not RANGO_LAT["min"] <= latitud <= RANGO_LAT["max"]:
-        raise ValueError("Valor de latitud fuera de rango")
+        raise ValueError("Valor latitud fuera de rango {}".format(RANGO_LAT))
     if not RANGO_LNG["min"] <= longitud <= RANGO_LNG["max"]:
-        raise ValueError("Valor de longitud fuera de rango")
+        raise ValueError("Valor longitud fuera de rango {}".format(RANGO_LNG))
 
 
-def obtener_horas_eventos_sol(latitud, longitud, fecha = None):
+def obtener_desfase_horario(latitud, longitud, fecha_hora = None):
+    """
+    Obtener la diferencia horaria de una ubicación en una fecha 
+    concreta teniendo en cuenta el horario de verano.
+
+    Argumentos:
+        latitud: latitud donde obtener el desfase (int o float).
+        longitud: longitud donde obtener el desfase (int o float).
+        fecha: día y hora en el cual obtener el desfase. Tiene que
+            ser de tipo datetime.datetime. Si es None se toma la 
+            fecha y hora actual.
+
+    Retorno:
+        Segundos de desfase (diferencia horaria respecto a UTC +
+            diferencia horaria de verano)
+
+    Excepciones:
+        RuntimeError en caso de no obtener resultado de la API. Contiene
+            el tipo de error devuelto por la API.
+        TypeError si los tipos de argumentos no son correctos.
+        ValueError si el rango de las coordenadas no es correcto.
+    """
+    comprobar_coordenadas(latitud, longitud)
+    
+    if fecha_hora is None:
+        fecha_hora = dt.datetime.today()
+    elif not isinstance(fecha_hora, dt.datetime):
+        raise TypeError("La fecha no es de tipo datetime.datetime.")
+
+    return _obtener_desfase_horario(latitud, longitud, fecha_hora)
+
+
+
+def _obtener_desfase_horario(latitud, longitud, fecha_hora):
+    """
+    Obtener la diferencia horaria de una ubicación en una fecha 
+    concreta teniendo en cuenta el horario de verano (al ser para
+    uso interno del módulo no comprueba argumentos).
+
+    Argumentos:
+        latitud: latitud donde obtener el desfase.
+        longitud: longitud donde obtener el desfase.
+        fecha_hora: día y hora en el cual obtener el desfase. Tiene
+            que ser de tipo datetime.datetime. 
+
+    Retorno:
+        Segundos de desfase (diferencia horaria respecto a UTC +
+            diferencia horaria de verano)
+
+    Excepciones:
+        RuntimeError en caso de no obtener resultado de la API. Contiene
+            el tipo de error devuelto por la API.
+    """
+    timestamp = int(fecha_hora.timestamp())
+
+    parametros_url = {"location":  "{}, {}".format(latitud, longitud),
+                      "key": clv.TIMEZONE_API_KEY, "timestamp": timestamp,
+                      "language": "es"}
+
+    res = requests.get(TIMEZONE_API_URL, parametros_url).json()
+    if res["status"] == "OK":
+        return res["dstOffset"] + res["rawOffset"]
+
+    raise RuntimeError("Error API de Google: {}".format(res["status"]))
+
+
+
+
+
+def obtener_horas_eventos_sol(latitud, longitud, fecha_dt = None):
     """
     Obtener los datos de las horas de la puesta, salida y crepúsculo
     del sol usando la API sunrise-sunset.org.
 
     Argumentos:
-        latitud: latitud donde obtener las horas del sol.
-        longitud: longitud donde obtener las horas del sol.
-        fecha: día en el cual obtener las horas del sol. Tiene que estar
-            en formato datetime.date. Si es None o no se pasa ningún
-            valor, se toma la fecha actual.
+        latitud: latitud donde obtener las horas del sol (int o float) 
+        longitud: longitud donde obtener las horas del sol (int o float)
+        fecha: día en el cual obtener las horas del sol. Tiene que ser
+            tipo datetime.date. Si es None se toma la fecha actual.
+    
     Retorno:
         Diccionario con las horas en formato datetime.time de cada
             evento del sol.
@@ -96,22 +166,38 @@ def obtener_horas_eventos_sol(latitud, longitud, fecha = None):
     Excepciones:
         RuntimeError en caso de no obtener resultado de la API. Contiene
             el tipo de error devuelto por la API.
+        TypeError si los tipos de argumentos no son correctos.
+        ValueError si el rango de las coordenadas no es correcto.
     """
+    comprobar_coordenadas(latitud, longitud)
+    if not isinstance(fecha_dt, dt.date) and fecha_dt is not None:
+        raise TypeError("La fecha no es de tipo datetime.date")
+
     parametros_url = {"lat": latitud, "lng": longitud}
-    if fecha is not None:
-        parametros_url["date"] = fecha.strftime("%Y-%m-%d")
-    
-    res = requests.get(SOL_API_URL, parametros_url)
+    if fecha_dt is not None:
+        parametros_url["date"] = fecha_dt.strftime("%Y-%m-%d")
+
+    res = requests.get(SOL_API_URL, parametros_url).json()
     if res["status"] != "OK":
         raise RuntimeError("Error API sunrise-sunset.org: {}"
-                           .format(res["results"]))
+                           .format(res["status"]))
 
-    horas_eventos_sol = \ 
-        {evento: dt.datetime.strptime(hora, "%I:%M:%S %p").time() 
-         for evento, hora in res["results"].items() if evento != "day_length"}
-    horas_eventos_sol["day_length"] = 
-        dt.datetime.strptime(res["results"]["day_length"], "%H:%M:%S").time()
-          
+    horas_eventos_sol = dict()
+    for evento, hora_str in res["results"].items():
+        if evento == "day_length":
+            horas_eventos_sol["day_length"] = \
+                dt.datetime.strptime(hora_str, "%H:%M:%S").time()
+            continue
+
+        hora_tm = dt.datetime.strptime(hora_str, "%I:%M:%S %p").time() 
+        horas_eventos_sol[evento] = hora_tm
+
+#        fecha_dtt = dt.datetime.combine(fecha_dt, hora_tm)
+#        segundos_desfase = \
+#            _obtener_desfase_horario(latitud, longitud, fecha_dtt)
+#        desfase_td = dt.timedelta(seconds=segundos_desfase)
+#        horas_eventos_sol[evento] = (fecha_dtt + desfase_td).time()
+
     return horas_eventos_sol
 
 
@@ -133,12 +219,12 @@ def obtener_coordenadas(direccion, region = None):
         RuntimeError en caso de no obtener resultado de la API. Contiene
             el tipo de error devuelto por la API.
     """
-    parametros_url = {"address": direccion, "key": MAP_API_KEY, 
+    parametros_url = {"address": direccion, "key": clv.GEOCODE_API_KEY, 
                       "language": "es"}
     if region is not None:
         parametros_url["region"] = region
 
-    res = requests.get(MAP_API_URL, parametros_url)
+    res = requests.get(GEOCODE_API_URL, parametros_url).json()
     if res["status"] == "OK":
         return (res["results"][0]["geometry"]["location"]["lat"],
                 res["results"][0]["geometry"]["location"]["lng"])
@@ -153,21 +239,30 @@ def obtener_direccion(latitud, longitud):
     usando la API Google Maps.
     
     Argumentos:
-        latitud: latitud de la coordenada.
-        longitud: longitud de la coordenada.
+        latitud: latitud de la coordenada. Tipo int o float.
+        longitud: longitud de la coordenada. Tipo int o float.
 
     Retorno:
         Cadena con la dirección de la coordenada.
+
+    Excepciones:
         RuntimeError en caso de no obtener resultado de la API. Contiene
             el tipo de error devuelto por la API.
+        ValueError si los valores de las coordenadas están fuera de 
+            rango.
+        TypeError si los tipos de datos de las coordenadas son
+            incorrectos.
     
     Mejoras:
         Tener en cuenta los parámetros result_type y location_type de
             la API.
     """
+    comprobar_coordenadas(latitud, longitud)
+
     latlng = "{}, {}".format(latitud, longitud)
-    res = requests.get(MAP_API_URL, {"latlng": latlng, "key": MAP_API_KEY,
-                                     "language": "es"})
+    res = requests.get(GEOCODE_API_URL, 
+                       {"latlng": latlng, "key": clv.GEOCODE_API_KEY, 
+                        "language": "es"}).json()
     if res["status"] == "OK":
         return res["results"][0]["formatted_address"]
 
