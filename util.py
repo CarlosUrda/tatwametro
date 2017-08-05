@@ -17,6 +17,26 @@ SOL_API_URL      = "https://api.sunrise-sunset.org/json"
 GEOCODE_API_URL  = "https://maps.googleapis.com/maps/api/geocode/json"
 TIMEZONE_API_URL = "https://maps.googleapis.com/maps/api/timezone/json"
 
+# Eventos del sol
+EVENTOS_SOL_ING_ESP = {"sunrise": "salida", "sunset": "puesta", 
+                       "solar_noon": "mediodia", 
+                       "civil_twilight_begin": "amanecer_civil",
+                       "civil_twilight_end": "ocaso_civil",
+                       "nautical_twilight_begin": "amanecer_nautico",
+                       "nautical_twilight_end": "ocaso_nautico",
+                       "astronomical_twilight_begin": "amanecer_astronomico",
+                       "astronomical_twilight_end": "ocaso_astronomico"}
+
+EVENTOS_SOL_DESCRIPCION = \
+    {"salida": "salida del sol", "puesta": "puesta del sol",
+     "mediodia": "sol del mediodía", 
+     "amanecer_civil": "inicio del amanecer civil",
+     "ocaso_civil": "fin del ocaso civil", 
+     "amanecer_nautico": "inicio del amanecer náutico",
+     "ocaso_nautico": "fin del ocaso náutico", 
+     "amanecer_astronomico": "inicio del amanecer astronómico",
+     "ocaso_astronomico": "fin del ocaso astronómico"} 
+
 # Rango coordenadas API Google MAPS
 RANGO_LAT = {"max": 90,  "min": -90}
 RANGO_LNG = {"max": 180, "min": -180}
