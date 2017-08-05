@@ -1,5 +1,5 @@
-# tatwametro
-Tatwámetro para el cálculo de tatwas
+# Tatwámetro
+Implementación de un tatwámetro para el cálculo de tatwas.
 
 
 En el módulo claves.py deben estar las claves privadas para acceso a API's. Los nombres a asignar a las claves privadas son:
