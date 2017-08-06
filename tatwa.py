@@ -506,7 +506,7 @@ class EntornoTatwas:
             RuntimeError en caso de haber error al obtener dirección 
                 de localización. 
         """
-        util.comprobar_coordenadas(latitud, longitud)
+        latitud, longitud = util.convertir_coordenadas(latitud, longitud)
 
         if localizable:
             try:
