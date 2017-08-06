@@ -8,6 +8,8 @@ Módulo con utilidades generales.
 # imports
 import requests
 import datetime as dt
+import ntplib
+import pytz
 import claves as key
 from collections import Sequence
 from numbers import Number
@@ -17,6 +19,7 @@ SOL_API_URL        = "https://api.sunrise-sunset.org/json"
 GC_GOOGLE_API_URL  = "https://maps.googleapis.com/maps/api/geocode/json"
 TZ_GOOGLE_API_URL  = "https://maps.googleapis.com/maps/api/timezone/json"
 TIMEZONEDB_API_URL = "http://api.timezonedb.com/v2/get-time-zone"
+NTP_API_URL        = "europe.pool.ntp.org"
 
 # Eventos del sol
 EVENTOS_SOL_ING_ESP = {"sunrise": "salida", "sunset": "puesta", 
@@ -74,10 +77,10 @@ def restar_horas_sg(hora1, hora2, es_mismo_dia=True):
 
 
 
-def comprobar_coordenadas(latitud, longitud):
+def convertir_coordenadas(latitud, longitud):
     """
-    Comprobar si los datos latitud y longitud de unas coordenadas son
-    correctos.
+    Convertir los datos latitud y longitud a formato float, comprobando
+    además si los valores están dentro del rango.
 
     Argumentos:
         latitud: valor de la latitud a comprobar.
@@ -88,76 +91,80 @@ def comprobar_coordenadas(latitud, longitud):
             rango.
         TypeError si los tipos de datos de las coordenadas son
             incorrectos.
+
+    Retorno:
+        Coordenadas (latitud, longitud) convertidas a float.
     """
-    if not isinstance(latitud, (float, int)):
-        raise TypeError("La latitud no es float o int")
-    if not isinstance(longitud, (float, int)):
-        raise TypeError("La longitud no es float o int")
+    try:
+        latitud = float(latitud)
+        longitud = float(longitud)
+    except (ValueError, TypeError):
+        raise TypeError("Las coordenadas no están en formato numérico.")
 
     if not RANGO_LAT["min"] <= latitud <= RANGO_LAT["max"]:
         raise ValueError("Valor latitud fuera de rango {}".format(RANGO_LAT))
     if not RANGO_LNG["min"] <= longitud <= RANGO_LNG["max"]:
         raise ValueError("Valor longitud fuera de rango {}".format(RANGO_LNG))
 
+    return latitud, longitud
 
-def obtener_fechahora(latitud, longitud, timestamp=None, api="timezonedb"):
+
+
+def obtener_actual_timestamp():
     """
-    Obtener la fecha y hora de una localización concreta en un 
-    timestamp determinado.
-
-    Argumentos:
-        latitud: latitud donde obtener el desfase (int o float).
-        longitud: longitud donde obtener el desfase (int o float).
-        timestamp: tiempo UNIX o número de segundos en UTC desde el
-            01/01/1970. Si es None se toma el timestamp UTC actual.
-        api: API a usar para obtener los datos:
-            "timezonedb": http://api.timezonedb.com/v2/
-            "google": https://maps.googleapis.com/maps/api/timezone/
+    Obtener el actual timestamp UTC.
 
     Retorno:
-        Objeto datetime.datetime con la fecha y hora establecida en
-            las coordenadas para un timestamp UTC concreto.
-
-    Excepciones:
-        RuntimeError en caso de no obtener resultado de la API. Contiene
-            el tipo de error devuelto por la API.
-        TypeError si los tipos de argumentos no son correctos.
-        ValueError si el rango de las coordenadas o el valor de
-            timestamp no es correcto.
+        Número de segundos representando el timestamp UTC actual.
     """
-    comprobar_coordenadas(latitud, longitud)
-    if timestamp is None:
-        timestamp = int(dt.datetime.now().timestamp())
-    else:
-        try:
-            timestamp = int(timestamp)
-        except (ValueError, TypeError):
-            raise TypeError("Timestamp debe tener formato numérico."))
-        if timestamp <= 0:
-            raise ValueError("Timestamp debe ser > 0")
-    
-    return _obtener_fechahora(latitud, longitud, timestamp, api)
+    return ntplib.NTPClient().request(NTP_API_URL).tx_time
 
 
 
-def _obtener_fechahora(latitud, longitud, timestamp, api="timezonedb"):
+def obtener_fechahora(zona_horaria, timestamp=None):
     """
-    Obtener la fecha y hora de una localización concreta en un 
-    timestamp determinado. (al ser para uso interno del módulo 
-    no comprueba los tres primeros argumentos).
+    Obtener la fecha y hora de una zona horaria concreta en un
+    timestamp determinado (sin usar API, sólo herramientas del
+    sistema)
 
     Argumentos:
-        latitud: latitud donde obtener el desfase.
-        longitud: longitud donde obtener el desfase.
+        latitud: latitud donde obtener la fecha y hora.
+        longitud: longitud donde obtener la fecha y hora.
         timestamp: valor int representando el número de segundos en 
-            UTC desde el 01/01/1970 (tiempo UNIX).
+            UTC desde el 01/01/1970 (tiempo UNIX). Si es None se
+            toma el momento presente.
+
+    Retorno:
+        Objeto datetime.datetime con fecha y hora establecida en las 
+        coordenadas para un timestamp UTC.
+    """
+    if timestamp is None:
+        timestamp = obtener_actual_timestamp()
+
+    return dt.datetime.fromtimestamp(timestamp, pytz.timezone(zona_horaria))
+
+
+
+def obtener_fechahora_API(latitud, longitud, timestamp=None, api="timezonedb"):
+    """
+    Obtener la fecha, hora y zona horaria de una localización concreta
+    en un timestamp determinado usando una API.
+
+    Argumentos:
+        latitud: latitud donde obtener los datos.
+        longitud: longitud donde obtener los datos.
+        timestamp: valor int representando el número de segundos en 
+            UTC desde el 01/01/1970 (tiempo UNIX). Si es None se
+            toma el momento presente.
         api: API a usar para obtener los datos. API's disponibles:
             "timezonedb": http://api.timezonedb.com/v2/get-time-zone
             "google": https://maps.googleapis.com/maps/api/timezone/
 
     Retorno:
-        Objeto datetime.datetime con la fecha y hora establecida en
-            las coordenadas para un timestamp UTC concreto.
+        Diccionario con el siguiente formato:
+            {"fechahora": Objeto datetime.datetime con fecha y hora 
+                establecida en las coordenadas para un timestamp UTC,
+             "zona_horaria": Nombre de la zona horaria.}
 
     Excepciones:
         RuntimeError en caso de no obtener resultado de la API. Contiene
@@ -165,6 +172,9 @@ def _obtener_fechahora(latitud, longitud, timestamp, api="timezonedb"):
         ValueError si el argumento api tiene un valor no válido.
     """
     if api == "google":
+        if timestamp is None:
+            timestamp = obtener_actual_timestamp()
+        
         parametros_url = {"location":  "{}, {}".format(latitud, longitud),
                           "key": key.TZ_GOOGLE_API_KEY, "timestamp": timestamp,
                           "language": "es"}
@@ -174,21 +184,27 @@ def _obtener_fechahora(latitud, longitud, timestamp, api="timezonedb"):
             raise RuntimeError("Error API Google: {}".format(res["status"]))
         
         timestamp += res["dstOffset"] + res["rawOffset"]
+        zona_horaria = res["timeZoneId"]
 
     elif api == "timezonedb":
         parametros_url = {"lat": latitud, "lng": longitud, "format": "json", 
                           "by": "position", "key": key.TIMEZONEDB_API_KEY, 
-                          "time": timestamp}
+                          "fields": "timestamp,zoneName"}
+        if timestamp is not None:
+            parametros_url["time"] = timestamp
 
         res = requests.get(TIMEZONEDB_API_URL, parametros_url).json()
         if res["status"] != "OK":
             raise RuntimeError("Err API TimeZoneDB: {}".format(res["message"]))
         
         timestamp = res["timestamp"]
+        zona_horaria = res["zoneName"].replace("\\", "")
+
     else:
         raise ValueError("Valor de tipo de API incorrecto")
 
-    return dt.datetime.utcfromtimestamp(timestamp)
+    return {"fechahora": dt.datetime.utcfromtimestamp(timestamp),
+            "zona_horaria": zona_horaria}
 
 
 
@@ -198,15 +214,15 @@ def obtener_horas_eventos_sol(latitud, longitud, fecha=None):
     del sol usando la API sunrise-sunset.org.
 
     Argumentos:
-        latitud: latitud donde obtener las horas del sol (int o float) 
-        longitud: longitud donde obtener las horas del sol (int o float)
+        latitud: latitud donde obtener las horas del sol.
+        longitud: longitud donde obtener las horas del sol.
         fecha: día en el cual obtener las horas del sol. Tiene que ser
             tipo datetime.date. Por defecto se toma la fecha actual de
             la localización solicitada.
     
     Retorno:
         Diccionario con las horas de cada evento del sol en formato 
-            datetime.time, excepto  "duracion_dia" que tiene formato 
+            datetime.time, excepto "duracion_dia" que tiene formato 
             datetime.timdelta. 
     
     Excepciones:
@@ -214,11 +230,13 @@ def obtener_horas_eventos_sol(latitud, longitud, fecha=None):
             el tipo de error devuelto por la API.
         TypeError si los tipos de argumentos no son correctos.
         ValueError si el rango de las coordenadas no es correcto.
+
+    Arreglar fijar_fecha de tatwa.py
     """
-    comprobar_coordenadas(latitud, longitud)
+    datos_horario = obtener_fechahora_API(latitud, longitud)
+    zona_horaria = datos_horario["zona_horaria"]
     if fecha is None:
-        fecha = _obtener_fechahora(latitud, longitud, 
-                                   int(dt.datetime.now().timestamp())).date()
+        fecha = datos_horario["fechahora"].date()
     elif not isinstance(fecha, dt.date):
         raise TypeError("La fecha no es de tipo datetime.date o None.")
 
@@ -239,14 +257,14 @@ def obtener_horas_eventos_sol(latitud, longitud, fecha=None):
         
         fechahora_utc = dt.datetime.strptime(valor, "%Y-%m-%dT%H:%M:%S+00:00")
         timestamp = fechahora_utc.replace(tzinfo=dt.timezone.utc).timestamp()
-        horas_eventos_sol[evento] = _obtener_fechahora(latitud, longitud, 
-                                                       int(timestamp)).time()
+        horas_eventos_sol[evento] = obtener_fechahora(zona_horaria, 
+                                                      int(timestamp)).time()
 
     return horas_eventos_sol
 
 
 
-def obtener_coordenadas(direccion, region=None):
+def obtener_coordenadas_API(direccion, region=None):
     """
     Obtener las coordenadas (latitud, longitud) de una dirección
     usando la API Google Maps.
@@ -277,40 +295,58 @@ def obtener_coordenadas(direccion, region=None):
 
 
 
-def obtener_direccion(latitud, longitud):
+def obtener_direccion_API(latitud, longitud, api="timezonedb"):
     """
     Obtener direccion a partir de unas coordenadas (latitud, longitud)
-    usando la API Geocode Google Maps.
+    usando una API disponible.
     
     Argumentos:
-        latitud: latitud de la coordenada. Tipo int o float.
-        longitud: longitud de la coordenada. Tipo int o float.
+        latitud: latitud de la coordenada.
+        longitud: longitud de la coordenada.
+        api: API a usar para obtener la dirección. API's disponibles:
+            "timezonedb": http://api.timezonedb.com/v2/get-time-zone
+            "google": https://maps.googleapis.com/maps/api/geocode/
 
     Retorno:
-        Cadena con la dirección de la coordenada.
+        API Google: Dirección exacta de las coordenadas.
+        API TimeZoneDB: Ciudad y país de las coordenadas manera 
+            aproximada.
 
     Excepciones:
         RuntimeError en caso de no obtener resultado de la API. Contiene
             el tipo de error devuelto por la API.
-        ValueError si los valores de las coordenadas están fuera de 
-            rango.
-        TypeError si los tipos de datos de las coordenadas son
-            incorrectos.
+        ValueError si el valor de api es incorrecto.
     
     Mejoras:
         Tener en cuenta los parámetros result_type y location_type de
-            la API.
+            la API de Google.
     """
-    comprobar_coordenadas(latitud, longitud)
-
-    latlng = "{}, {}".format(latitud, longitud)
-    res = requests.get(GC_GOOGLE_API_URL, 
+    if api == "google":
+        latlng = "{}, {}".format(latitud, longitud)
+        res = requests.get(GC_GOOGLE_API_URL, 
                        {"latlng": latlng, "key": key.GC_GOOGLE_API_KEY, 
                         "language": "es"}).json()
-    if res["status"] == "OK":
-        return res["results"][0]["formatted_address"]
+        if res["status"] != "OK":
+            raise RuntimeError("Error API de Google: {}".format(res["status"]))
 
-    raise RuntimeError("Error API de Google: {}".format(res["status"]))
+        direccion = res["results"][0]["formatted_address"]
+    
+    elif api == "timezonedb":
+        parametros_url = {"lat": latitud, "lng": longitud, "format": "json", 
+                          "by": "position", "key": key.TIMEZONEDB_API_KEY, 
+                          "fields": "zoneName,countryName,countryCode"}
+
+        res = requests.get(TIMEZONEDB_API_URL, parametros_url).json()
+        if res["status"] != "OK":
+            raise RuntimeError("Err API TimeZoneDB: {}".format(res["message"]))
+        
+        direccion = "{}, {}({})".format(res["zoneName"].split("/")[1],
+                                        res["countryName"], res["countryCode"])
+
+    else
+        raise ValueError("Valor de tipo de API incorrecto")
+
+    return direccion
 
 
 
