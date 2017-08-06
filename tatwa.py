@@ -435,17 +435,19 @@ class EntornoTatwas:
         return self._region
 
 
-    def fijar_localizacion(self, direccion, region = None):
+    def fijar_localizacion(self, direccion, region=None, localizable=False):
         """
         Guardar internamente la dirección y región de la localización.
-        Además obtiene las coordenadas de la misma y las fija 
-        internamente.
+        De manera opcional actualiza las coordenadas de localización 
+        a partir de dichas dirección y región.
 
         Argumentos:
             direccion: cadena con la descripción de la dirección 
                 donde realizar los caĺculos.
             region: código de región donde se encuentra la direccion.
                 Es opcional si se desea concretar la dirección.
+            localizable: flag para indicar si debe actualizar las
+                coordenadas a partir de la dirección y región.
 
         Excepciones:
             RuntimeError en caso de haber error al intentar obtener
@@ -454,17 +456,18 @@ class EntornoTatwas:
         """
         if not direccion:
             raise ValueError("Valor de dirección vacío")
+        if localizable:
+            try:
+                coordenadas = util.obtener_coordenadas(direccion, region)
+            except RuntimeError as err:
+                print(err)
+                raise RuntimeError("Error al intentar obtener las coordenadas")
 
-        try:
-            coordenadas = util.obtener_coordenadas(direccion, region)
-        except RuntimeError as err:
-            print(err)
-            raise RuntimeError("Error al intentar obtener las coordenadas")
-
-        self.fijar_coordenadas(coordenadas[0], coordenadas[1], False)
-                                              
+            self.fijar_coordenadas(coordenadas[0], coordenadas[1], False)
+                                    
         self._direccion = direccion        
         self._region = region
+        self._horas_eventos_sol = None
 
 
     @property
@@ -483,7 +486,7 @@ class EntornoTatwas:
             return self._coordenadas["lat"], self._coordenadas["lng"]
 
 
-    def fijar_coordenadas(self, latitud, longitud, localizable = True):
+    def fijar_coordenadas(self, latitud, longitud, localizable = False):
         """
         Actualiza internamente las coordenadas del lugar donde calcular
         los tatwas. También de manera opcional actualiza la dirección
@@ -512,18 +515,15 @@ class EntornoTatwas:
                 print(err)
                 raise RuntimeError("Error al obtener la dirección a partir "
                                    "de las coordenadas")
-        else:
-            self._direccion = None
 
-        self._region = None
         self._coordenadas = {"lat": latitud, "lng": longitud}
         self._horas_eventos_sol = None
 
 
     def fijar_horas_eventos_sol(self, salida = None, puesta = None, 
-                                mediodia = None, amanecer_civil = None, 
-                                ocaso_civil = None, amanecer_nautico = None, 
-                                ocaso_nautico = None, 
+                                mediodia = None, duracion_dia = None
+                                amanecer_civil = None, ocaso_civil = None, 
+                                amanecer_nautico = None, ocaso_nautico = None, 
                                 amanecer_astronomico = None, 
                                 ocaso_astronomico = None):
         """
@@ -535,6 +535,7 @@ class EntornoTatwas:
             salida: hora de salida del sol. Tipo datetime.time.
             puesta: hora de puesta del sol. Tipo datetime.time.
             mediodia: hora del sol al mediodía. Tipo datetime.time.
+            duracion_dia: duración del día. Tipo datetime.timedelta.
             amanecer_civil: hora del amanecer civil (datetime.time).
             ocaso_civil: hora del ocaso civil. Tipo datetime.time.
             amanecer_nautico: hora del amanecer náutico (datetime.time).
@@ -551,7 +552,12 @@ class EntornoTatwas:
         for evento, hora in locals().items():
             if hora is None or evento == "self":
                 continue
-            if not isinstance(hora, dt.time):
+            if evento == "duracion_dia":
+                if not isinstance(hora, dt.timedelta):
+                    self._horas_eventos_sol = None
+                    raise TypeError("Duración {} no es datetime.timedelta"
+                                    .format(evento))
+            elif not isinstance(hora, dt.time):
                 self._horas_eventos_sol = None
                 raise TypeError("Hora {} no es datetime.time".format(evento))
             
@@ -592,9 +598,7 @@ class EntornoTatwas:
                 raise RuntimeError("La lista obtenida de horas de los eventos"
                                    " del sol está vacía.")
               
-        self._horas_eventos_sol = \
-            {util.EVENTOS_SOL_ING_ESP[evento_ing]: hora 
-             for evento_ing, hora in horas_eventos_sol.items()}
+        self._tatwas = None
 
 
     def calcular_tatwas(self):
@@ -644,8 +648,7 @@ class EntornoTatwas:
 
     def fijar_fecha(self, dia = None, mes = 1, anno = 1900):
         """
-        Modificar internamente la fecha en la cual se calcularán los
-        tatwas.
+        Modificar la fecha en la cual se calcularán los tatwas.
 
         Argumentos:
             dia: día de la fecha. Si es None, se toma la fecha actual.
@@ -668,6 +671,7 @@ class EntornoTatwas:
                 raise TypeError("Error al crear tipo datetime.date")
             
         self._horas_eventos_sol = None
+        self._tatwas = None
 
 
     @property
