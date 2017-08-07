@@ -37,7 +37,7 @@ class Tatwa:
             ValueError si el valor de los argumentos no son permitidos.
         """
         try:
-            self.cambiar_tatwa_por_posicion(tatwa)
+            self.posicion = tatwa
         except TypeError:
             pass
         else:
@@ -56,7 +56,12 @@ class Tatwa:
         """
         Getter del atributo nombre
         """
-        return self._nombre
+        if self._posicion is None:
+            return self._nombre
+
+        numero_tatwas = len(self.NOMBRES_TATWAS)
+        return self.NOMBRES_TATWAS[(self._posicion - 1) % numero_tatwas] 
+     
 
     @nombre.setter
     def nombre(self, nombre):
@@ -79,6 +84,7 @@ class Tatwa:
             raise ValueError("Valor incorrecto del nombre del tatwa")
 
         self._nombre = nombre
+        self._posicion = None
 
 
     @property
@@ -86,7 +92,11 @@ class Tatwa:
         """
         Getter del atributo ciclo.
         """
-        return self._ciclo
+        if self._posicion is None:
+            return self._ciclo
+        
+        return (self._posicion - 1) // len(self.NOMBRES_TATWAS) + 1
+
 
     @ciclo.setter
     def ciclo(self, ciclo):
@@ -102,8 +112,10 @@ class Tatwa:
             TypeError si el ciclo no es un entero int o None.
             ValueError si el ciclo int es < 1.
         """
-        if self._nombre is None:
-            raise RuntimeError
+        if self._posicion is not None:
+            raise RuntimeError("Ya has marcado este tatwa con una posición."
+                               " Si deseas asignar un ciclo marca antes este" 
+                               " tatwa con un nombre.")
         if isinstance(ciclo, int):
             if ciclo < 1:
                 raise ValueError("El valor entero de ciclo debe ser >= 1")
@@ -113,7 +125,26 @@ class Tatwa:
         self._ciclo = ciclo
 
 
-    def cambiar_tatwa_por_posicion(self, posicion):
+    @property
+    def posicion(self):
+        """
+        Getter para obtener el número de posición del tatwa en los 
+        ciclos de los tatwas. 
+
+        Retorno:
+            Si está marcado por la posición, devuelve la posición.
+            Si no, devuelve la posición en función del ciclo asignado
+            al tatwa. Si no tiene ciclo, se toma el primero.
+        """
+        if self._posicion is not None:
+            return self._posicion
+
+        indice_ciclo = 0 if self.ciclo is None else self.ciclo - 1
+        return (self._indice() + 1) + indice_ciclo * len(self.NOMBRES_TATWAS)
+    
+    
+    @posicion.setter    
+    def posicion(self, posicion):
         """
         Cambiar el tatwa por el correspondiente a la nueva posición
         en el ciclo de tatwas (empezando por 1). También modifica
@@ -132,11 +163,17 @@ class Tatwa:
         if posicion < 1:
             raise ValueError("La nueva posición debe ser > 0.")
 
-        numero_de_tatwas = len(self.NOMBRES_TATWAS)
-        indice = (posicion - 1) % numero_de_tatwas
-        self._ciclo = (posicion - 1) // numero_de_tatwas + 1       
-        self._nombre = self.NOMBRES_TATWAS[indice]
-     
+        self._posicion = posicion
+        self._nombre = self._ciclo = None
+
+
+    @property
+    def atributo(self):
+        """
+        Getter que informa de qué determina el tatwa: nombre o posición.
+        """
+        return "nombre" if self._posicion is None else "posicion"
+
 
     @classmethod
     def _indice_de_nombre_tatwa(cls, nombre):
@@ -167,25 +204,14 @@ class Tatwa:
         Retorno:
             Entero índice del tatwa (>= 0) en el ciclo de tatwas.
         """
+        if self._posicion is not None:
+            return (self._posicion - 1) % len(self.NOMBRES_TATWAS)
+
         return self._indice_de_nombre_tatwa(self.nombre)
 
 
-    @property
-    def posicion(self):
-        """
-        Getter para obtener el número de posición del tatwa en los 
-        ciclos de los tatwas. 
-
-        Retorno:
-            Número de posición en función del ciclo asignado al 
-            tatwa. Si no tiene ciclo, se toma el primero.
-        """
-        indice_ciclo = 0 if self.ciclo is None else self.ciclo - 1
-        return (self._indice() + 1) + indice_ciclo * len(self.NOMBRES_TATWAS)
-
-
     def __str__(self):
-        return self._nombre.capitalize()
+        return self.nombre.capitalize()
         
     def __repr__(self):
         return "{}, {} ({})".format(self, self.posicion, self.ciclo) 
