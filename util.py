@@ -46,7 +46,7 @@ RANGO_LAT = {"max": 90,  "min": -90}
 RANGO_LNG = {"max": 180, "min": -180}
 
 
-def restar_horas_sg(hora1, hora2, es_mismo_dia=True):
+def restar_horas(hora1, hora2, es_mismo_dia=True):
     """
     Calcular la diferencia en segundos entre dos horas. Es similar a
     realizar hora1 - hora2. No se tienen en cuenta los microsegundos,
@@ -321,7 +321,7 @@ def API_google_geocode(localizacion):
 
 
 
-def obtener_horas_eventos_sol(latitud, longitud, fecha=None):
+def obtener_fechahoras_eventos_sol(latitud, longitud, fecha=None):
     """
     Obtener los datos de las horas de la puesta, salida y crepúsculo
     del sol usando la API sunrise-sunset.org.
@@ -335,7 +335,7 @@ def obtener_horas_eventos_sol(latitud, longitud, fecha=None):
     
     Retorno:
         Diccionario con las horas de cada evento del sol en formato 
-            datetime.time, excepto "duracion_dia" que tiene formato 
+            datetime.datetime, excepto "duracion_dia" que tiene formato 
             datetime.timdelta. 
     
     Excepciones:
@@ -357,20 +357,20 @@ def obtener_horas_eventos_sol(latitud, longitud, fecha=None):
     if res["status"] != "OK":
         raise RuntimeError("Error API sunrise-sunset {}".format(res["status"]))
 
-    horas_eventos_sol = dict()
-    for evento, valor in res["results"].items():
+    fechahoras_eventos_sol = dict()
+    for evento, dato in res["results"].items():
         evento = EVENTOS_SOL_ING_ESP[evento]
         
         if evento == "duracion_dia":
-            horas_eventos_sol["duracion_dia"] = dt.timedelta(seconds=valor)
+            fechahoras_eventos_sol["duracion_dia"] = dt.timedelta(seconds=dato)
             continue
         
-        fechahora_utc = dt.datetime.strptime(valor, "%Y-%m-%dT%H:%M:%S+00:00")
+        fechahora_utc = dt.datetime.strptime(dato, "%Y-%m-%dT%H:%M:%S+00:00")
         timestamp = fechahora_utc.replace(tzinfo=dt.timezone.utc).timestamp()
-        horas_eventos_sol[evento] = obtener_fechahora(zona_horaria, 
-                                                      timestamp).timetz()
+        fechahoras_eventos_sol[evento] = obtener_fechahora(zona_horaria, 
+                                                           timestamp)
 
-    return horas_eventos_sol
+    return fechahoras_eventos_sol
 
 
 
