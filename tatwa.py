@@ -390,27 +390,11 @@ class EntornoTatwas:
         self._coordenadas = None
         self._fecha = None
         self._direccion = None
-        self._region = None
+        self._zona_horaria = None
         self._hora = None
         self._horas_eventos_sol = None
         self._tatwas = None
 
-
-    @property
-    def localizacion(self):
-        """
-        Getter del atributo localizacion.
-
-        Retorno:
-            Devuelve la localización en el siguiente formato:
-            dirección (región). None si no se ha fijado aún la
-            localización.
-        """
-        if self._direccion is None:
-            return None
-
-        region = " ({})".format(self._region) if self._region else ""
-        return "{}{}".format(self._direccion, region)  
 
 
     @property
@@ -419,33 +403,21 @@ class EntornoTatwas:
         Getter del atributo dirección.
 
         Retorno:
-            Valor del atributo dirección.
+            Devuelve la dirección fijada. None si no se ha fijado
         """
         return self._direccion
 
 
-    @property
-    def region(self):
-        """
-        Getter del atributo región.
 
-        Retorno:
-            Valor del atributo región.
+    def fijar_direccion(self, direccion, localizable=False):
         """
-        return self._region
-
-
-    def fijar_localizacion(self, direccion, region=None, localizable=False):
-        """
-        Guardar internamente la dirección y región de la localización.
+        Guardar internamente la dirección de la localización.
         De manera opcional actualiza las coordenadas de localización 
         a partir de dichas dirección y región.
 
         Argumentos:
             direccion: cadena con la descripción de la dirección 
                 donde realizar los caĺculos.
-            region: código de región donde se encuentra la direccion.
-                Es opcional si se desea concretar la dirección.
             localizable: flag para indicar si debe actualizar las
                 coordenadas a partir de la dirección y región.
 
@@ -458,7 +430,7 @@ class EntornoTatwas:
             raise ValueError("Valor de dirección vacío")
         if localizable:
             try:
-                coordenadas = util.obtener_coordenadas(direccion, region)
+                coordenadas = util.API_google_geocode(direccion)
             except RuntimeError as err:
                 print(err)
                 raise RuntimeError("Error al intentar obtener las coordenadas")
@@ -466,8 +438,6 @@ class EntornoTatwas:
             self.fijar_coordenadas(coordenadas[0], coordenadas[1], False)
                                     
         self._direccion = direccion        
-        self._region = region
-        self._horas_eventos_sol = None
 
 
     @property
@@ -486,7 +456,8 @@ class EntornoTatwas:
             return self._coordenadas["lat"], self._coordenadas["lng"]
 
 
-    def fijar_coordenadas(self, latitud, longitud, localizable = False):
+
+    def fijar_coordenadas(self, latitud, longitud, localizable = True):
         """
         Actualiza internamente las coordenadas del lugar donde calcular
         los tatwas. También de manera opcional actualiza la dirección
@@ -508,20 +479,24 @@ class EntornoTatwas:
         """
         latitud, longitud = util.convertir_coordenadas(latitud, longitud)
 
-        if localizable:
-            try:
-                self._direccion = util.obtener_direccion(latitud, longitud)
-            except RuntimeError as err:
-                print(err)
-                raise RuntimeError("Error al obtener la dirección a partir "
-                                   "de las coordenadas")
+        try:
+            datos = util.API_timezonedb_get((latitud, longitud))
+        except RuntimeError as err:
+            print(err)
+            raise RuntimeError("Error al obtener dirección y zona horaria.")
 
+        if localizable:
+            self._direccion = datos["direccion"]
+        
+        self._zona_horaria = datos["zona_horaria"]
         self._coordenadas = {"lat": latitud, "lng": longitud}
         self._horas_eventos_sol = None
+        self._tatwas = None
+
 
 
     def fijar_horas_eventos_sol(self, salida = None, puesta = None, 
-                                mediodia = None, duracion_dia = None
+                                mediodia = None, duracion_dia = None,
                                 amanecer_civil = None, ocaso_civil = None, 
                                 amanecer_nautico = None, ocaso_nautico = None, 
                                 amanecer_astronomico = None, 
@@ -573,28 +548,32 @@ class EntornoTatwas:
         """
         Actualizar las horas de los eventos del sol a partir de
         coordenadas y fecha. Para poder obtener las horas es necesario 
-        que las coordenadas y la fecha estén ya fijados internamente.
+        que las coordenadas estén ya fijados internamente.
 
         Excepciones:
             ValueError si la fecha o las coordenadas no han sido fijadas.
             RuntimeError si ocurre algún error al intentar obtener las
                horas de los eventos.
         """
-        if self._fecha is None:
-            raise ValueError("No se ha asignado un valor para la fecha")
-        elif self._coordenadas is None:
+        if self._coordenadas is None:
             raise ValueError("No se han fijado las coordenadas")
-    
+
+        if self._fecha is None:
+            self._ultima_fecha = \
+                util.obtener_fechahora(self._zona_horaria).date()    
+        else:
+            self._ultima_fecha = self._fecha
+
         try:
-            horas_eventos_sol = \
+            self._horas_eventos_sol = \
                 util.obtener_horas_eventos_sol(self._coordenadas["lat"], 
                                                self._coordenadas["lng"], 
-                                               self._fecha)
+                                               self._ultima_fecha)
         except RuntimeError as err:
             print(err)
             raise RuntimeError("Error al obtener las horas de eventos del sol")
         else:
-            if len(horas_eventos_sol) == 0:
+            if len(self._horas_eventos_sol) == 0:
                 raise RuntimeError("La lista obtenida de horas de los eventos"
                                    " del sol está vacía.")
               
@@ -607,13 +586,17 @@ class EntornoTatwas:
         del sol y la hora concreta a ser calculados.
 
         Excepciones:
-            ValueError si la hora para el cálculo de tatwas o las horas
-                de eventos del sol para tatwas no han sido fijadas.
+            ValueError si las horas de eventos del sol para tatwas 
+                no han sido fijadas.
         """
-        if self._hora is None:
-            raise ValueError("No se ha asignado una hora a calcular.")
-        elif self._horas_eventos_sol is None:
+        if self._horas_eventos_sol is None:
             raise ValueError("No se han obtenido las horas de eventos del sol")
+   
+        if self._hora is None:
+            self._ultima_hora = \
+                util.obtener_fechahora(self._zona_horaria).timetz()  
+        else:
+            self._ultima_hora = self._hora
     
         self._tatwas = dict()
 
@@ -622,8 +605,8 @@ class EntornoTatwas:
             if hora_evento is None:
                 continue
 
-            segundos = -util.restar_horas_sg(hora_evento, self._hora, 
-                                             self._hora >= hora_evento)
+            segundos = -util.restar_horas_sg(hora_evento, self._ultima_hora, 
+                                             self._ultima_hora >= hora_evento)
             posicion = segundos // Tatwa.SEGUNDOS_POR_TATWA + 1
             self._tatwas[evento] = Tatwa(posicion)
 
@@ -642,7 +625,6 @@ class EntornoTatwas:
         Retorno:
             Valor datetime.date con la fecha fijada.
         """
-        #return self._dia.strftime("%d de %B de %Y")
         return self._fecha
 
 
@@ -659,7 +641,7 @@ class EntornoTatwas:
             ValueError o TypeError si los argumentos son incorrectos.
         """
         if dia is None:
-            self._fecha = dt.date.today()
+            self._fecha = None 
         else:
             try:
                 self._fecha = dt.date(anno, mes, dia)    
@@ -701,7 +683,7 @@ class EntornoTatwas:
             ValueError o TypeError si los argumentos son incorrectos.
         """
         if horas is None:
-            self._hora = dt.datetime.now().time()
+            self._hora = None
         else:
             try:
                 self._hora = dt.time(horas, minutos, segundos)    
