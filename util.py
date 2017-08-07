@@ -137,6 +137,9 @@ def obtener_fechahora(zona_horaria, timestamp=None):
     Retorno:
         Objeto datetime.datetime con fecha y hora establecida en las 
         coordenadas para un timestamp UTC.
+    
+    Excepciones:
+        UnknownTimeZoneError: Si la zona horaria no es válida.
     """
     if timestamp is None:
         timestamp = obtener_actual_timestamp()
@@ -175,24 +178,25 @@ def API_timezonedb_get(localizacion, timestamp=None):
             produce algún error.
     """
     parametros_url = {"format": "json", "key": key.TIMEZONEDB_API_KEY, 
-                      "fields": "timestamp,zoneName,countryCode,countryName" \
+                      "fields": "timestamp,zoneName,countryCode,countryName"
                                 ",gmtOffset,dst"}
     
     if isinstance(localizacion, str):
-        parametros["by"] = "zone" 
-        parametros["zone"] = localizacion
+        parametros_url["by"] = "zone" 
+        parametros_url["zone"] = localizacion
     else:
-        parametros["by"]: "position"
+        parametros_url["by"] = "position"
         try:
             parametros_url["lat"] = localizacion[0]
             parametros_url["lng"] = localizacion[1]
         except (TypeError, IndexError):
-            raise TypeError("Formato de localización incorrecto.")
+            raise TypeError("Formato de localización incorrecto. Debe"
+                            " pasarse una lista de dos coordenadas")
 
     if timestamp is not None:
         parametros_url["time"] = timestamp
 
-    res = requests.get(TIMEZONEDB_API_URL, parametros_url).json()
+    res = requests.get(GET_TIMEZONEDB_API_URL, parametros_url).json()
     if res["status"] != "OK":
         raise RuntimeError("Error API TimeZoneDB: {}".format(res["message"]))
        
@@ -207,9 +211,9 @@ def API_timezonedb_get(localizacion, timestamp=None):
         "{}, {}({})".format(datos["zona_horaria"].split("/")[1],
                             datos["nombre_pais"], datos["codigo_pais"])
 
-    tz = pytz(retorno["zona_horaria"])
+    tz = pytz.timezone(datos["zona_horaria"])
     datos["fechahora"] = \
-        dt.datetime.utcfromtimestamp(res["timestamp"]).replace(tzinfo=tz)
+        dt.datetime.utcfromtimestamp(datos["timestamp"]).replace(tzinfo=tz)
 
     return datos
  
@@ -235,6 +239,7 @@ def API_google_timezone(latitud, longitud, timestamp=None):
              "zona_horaria": Nombre de la zona horaria,
              "zona_horaria_desc": Descripción zona horaria,
              "segundos_desfase": segundos de desfase con UTC,
+             "horario_verano": True/False si es horario verano,
              "timestamp": segundos UNIX de la fechahora local}
 
     Excepciones:
@@ -250,17 +255,18 @@ def API_google_timezone(latitud, longitud, timestamp=None):
 
     res = requests.get(TZ_GOOGLE_API_URL, parametros_url).json()
     if res["status"] != "OK":
-        mensg = "API Google {}: {}".format(res["status"], res["error_message"])
+        mensg = "API Google {}: {}".format(res["status"], res["errorMessage"])
         raise RuntimeError(mensg)
     
     datos = \
         {"segundos_desfase": res["dstOffset"] + res["rawOffset"],
+         "horario_verano": res["dstOffset"] > 0,
          "zona_horaria": res["timeZoneId"], 
          "zona_horaria_desc": res["timeZoneName"]}
     
     datos["timestamp"] = timestamp + datos["segundos_desfase"]
     
-    tz = pytz(datos["zona_horaria"])
+    tz = pytz.timezone(datos["zona_horaria"])
     datos["fechahora"] = \
         dt.datetime.utcfromtimestamp(datos["timestamp"]).replace(tzinfo=tz)
 
@@ -309,7 +315,7 @@ def API_google_geocode(localizacion):
 
     if es_inversa:
         return res["results"][0]["formatted_address"]
-    else
+    else:
         return (res["results"][0]["geometry"]["location"]["lat"],
                 res["results"][0]["geometry"]["location"]["lng"])
 
@@ -336,7 +342,6 @@ def obtener_horas_eventos_sol(latitud, longitud, fecha=None):
         RuntimeError en caso de no obtener resultado de la API. Contiene
             el tipo de error devuelto por la API.
         TypeError si los tipos de argumentos no son correctos.
-        ValueError si el rango de las coordenadas no es correcto.
     """
     datos_api = API_timezonedb_get((latitud, longitud))
     zona_horaria = datos_api["zona_horaria"]
