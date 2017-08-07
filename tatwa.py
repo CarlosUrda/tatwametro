@@ -389,12 +389,25 @@ class EntornoTatwas:
         """
         self._coordenadas = None
         self._fecha = None
+        self._ultima_fecha = None
         self._direccion = None
         self._zona_horaria = None
         self._hora = None
+        self._ultima_hora = None
         self._horas_eventos_sol = None
         self._tatwas = None
 
+
+    def __repr__(self):
+        return ("{}: {}\n"*9).format("Coordenadas", self._coordenadas, "Fecha",
+                                     self._fecha, "Última fecha",
+                                     self._ultima_fecha, "Dirección", 
+                                     self._direccion, "Zona horaria", 
+                                     self._zona_horaria, "Hora", self._hora,
+                                     "Última hora", self._ultima_hora,
+                                     "Horas eventos sol", 
+                                     self._horas_eventos_sol, "Tatwas",
+                                     self._tatwas)
 
 
     @property
@@ -600,7 +613,7 @@ class EntornoTatwas:
     
         self._tatwas = dict()
 
-        for evento in _EVENTOS_SOL_PARA_TATWAS:
+        for evento in self._EVENTOS_SOL_PARA_TATWAS:
             hora_evento = self._horas_eventos_sol.get(evento)
             if hora_evento is None:
                 continue
@@ -692,7 +705,7 @@ class EntornoTatwas:
                 raise ValueError("Error al crear tipo datetime.time.")
             except TypeError as err:
                 print(err)
-            raise TypeError("Error al crear tipo datetime.time.")
+                raise TypeError("Error al crear tipo datetime.time.")
 
         self._tatwas = None
                 
