@@ -9,7 +9,7 @@ Módulo con utilidades generales.
 import requests
 import datetime as dt
 import ntplib
-import pytz
+import pytz as tz
 import claves as key
 from collections import Sequence
 from numbers import Number
@@ -116,9 +116,14 @@ def obtener_actual_timestamp():
 
     Retorno:
         Número de segundos representando el timestamp UTC actual.
-    """
-    return ntplib.NTPClient().request(NTP_API_URL).tx_time
 
+    Excepciones:
+        RuntimeError si no se obtiene la hora del servidor ntp.
+    """
+    try:
+        return ntplib.NTPClient().request(NTP_API_URL).tx_time
+    except ntplib.NTPException as err:
+        raise RuntimeError(err)
 
 
 def obtener_fechahora(zona_horaria, timestamp=None):
@@ -140,11 +145,15 @@ def obtener_fechahora(zona_horaria, timestamp=None):
     
     Excepciones:
         UnknownTimeZoneError: Si la zona horaria no es válida.
+        RuntimeError si no se obtiene el timestamp actual.
     """
     if timestamp is None:
         timestamp = obtener_actual_timestamp()
 
-    return dt.datetime.fromtimestamp(timestamp, pytz.timezone(zona_horaria))
+    try:
+        return dt.datetime.fromtimestamp(timestamp, tz.timezone(zona_horaria))
+    except tz.UnknownTimeZoneError as err:
+        raise ValueError("Zona horaria inválida {}".format(err))
 
 
 
@@ -211,9 +220,9 @@ def API_timezonedb_get(localizacion, timestamp=None):
         "{}, {}({})".format(datos["zona_horaria"].split("/")[1],
                             datos["nombre_pais"], datos["codigo_pais"])
 
-    tz = pytz.timezone(datos["zona_horaria"])
+    tzone = tz.timezone(datos["zona_horaria"])
     datos["fechahora"] = \
-        dt.datetime.utcfromtimestamp(datos["timestamp"]).replace(tzinfo=tz)
+        dt.datetime.utcfromtimestamp(datos["timestamp"]).replace(tzinfo=tzone)
 
     return datos
  
@@ -266,9 +275,9 @@ def API_google_timezone(latitud, longitud, timestamp=None):
     
     datos["timestamp"] = timestamp + datos["segundos_desfase"]
     
-    tz = pytz.timezone(datos["zona_horaria"])
+    tzone = tz.timezone(datos["zona_horaria"])
     datos["fechahora"] = \
-        dt.datetime.utcfromtimestamp(datos["timestamp"]).replace(tzinfo=tz)
+        dt.datetime.utcfromtimestamp(datos["timestamp"]).replace(tzinfo=tzone)
 
     return datos
 
@@ -405,50 +414,60 @@ def es_iterable(objeto):
 
 def obtener_dato(mensaje, evaluar=None, comprobar=None, fin=None):
     """
-    Leer cadenas desde el teclado hasta que una de ellas cumpla alguna de estas
-    condiciones:
+    Leer cadenas desde el teclado hasta que una de ellas cumpla alguna
+    de estas condiciones:
     - La cadena sea una de las cadenas de finalización.
-    - La cadena, una vez evaluada en caso de evaluarse, pase una comprobación.
+    - La cadena, una vez evaluada en caso de evaluarse, pase una 
+        comprobación.
 
     Argumentos:
-        mensaje: mensaje mostrar antes de introducir el dato por teclado.
-        evaluar: función usada para evaluar la cadena introducida y obtener
-            el tipo de dato deseado. Debe lanzar una excepción ValueError si
-            la cadena a evaluar no tiene el formato correcto. En caso de None
-            la cadena leída por teclado no se evalúa.
-        comprobar: función que comprueba si el dato introducido (evaluado en
-            caso de evaluarse) es correcto. Si es None, no se realiza ninguna
-            comprobación del dato.
-            Debe devolver True si el dato correcto o False en caso contrario.
-        fin: cadena o tupla de cadenas de finalización que interrumpe lectura
-            por teclado. Si es None no se realiza ninguna comprobación de
-            finalización de la cadena introducida por teclado.
+        mensaje: mensaje mostrado antes de introducir el dato por 
+            teclado.
+        evaluar: función usada para evaluar la cadena introducida y 
+            obtener el tipo de dato deseado. Debe lanzar ValueError 
+            si la cadena introducida no puede ser evaluada. En caso de 
+            ser None, la cadena leída por teclado no se evalúa.
+        comprobar: función que comprueba si el dato introducido (ya 
+            evaluado en caso de evaluarse) es correcto. Si es None, 
+            no se realiza ninguna comprobación del dato. Debe lanzar
+            ValueError si el dato no pasa la comprobación.
+        fin: cadena o tupla de cadenas de finalización que interrumpe 
+            lectura por teclado. Si es None no se realiza ninguna 
+            comprobación de finalización de la cadena introducida por
+             teclado.
 
     Retorno:
         Los posibles valores devueltos son:
         - None si la cadena leída es una cadena de finalización.
-        - Dato introducido por teclado ya evaluado y pasada la comprobación.
+        - Dato introducido por teclado ya evaluado y pasada la 
+            comprobación.
+
+    Excepciones:
+        TypeError si evaluar o comprobar no son funciones, o 
+            fin no es str o tuple.
     """
     while True:
         dato = input(mensaje).strip()
-        if fin is not None and \
-           (isinstance(fin, tuple) and str.lower(dato) in map(str.lower, fin) \
-            or \
-            isinstance(fin, str) and str.lower(dato) == str.lower(fin)):
+
+        if not isinstance(fin, (str, tuple)):
+            raise TypeError("Condición de finalización debe ser str o tuple")
+
+        if isinstance(fin, str) and dato.lower() == fin.lower() \
+           or isinstance (fin, tuple) and dato.lower() in map(str.lower, fin))
             return None
 
         if evaluar is not None:
             try:
                 dato = evaluar(dato)
-            except ValueError:
-                print("ERROR: valor dato erróneo al evaluar cadena introducida")
-                continue
-            except SyntaxError:
-                print("ERROR: sintaxis errónea al evaluar cadena introducida.")
+            except ValueError as err:
+                print("Error al evaluar el dato introducido: {}".format(err))
                 continue
 
-        if comprobar is None or comprobar(dato):
-            return dato
+        if comprobar is not None: 
+            try:
+                comprobar(dato)
+            except ValueError as err:
+                print("Error al comprobar el dato introducido: {}".format(err))
+                continue
 
-        print("ERROR: el dato está en formato incorrecto.")
-
+        return dato
