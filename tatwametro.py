@@ -4,9 +4,12 @@
 """
 Programa para calcular tatwas
 
+- Archivo de configuración con el nombre del log. Todo proyecto tendrá
+este archivo y los módulos que contengan el proyecto usarán ese archivo
+común para escribir logs.
 - Coordenadas por IP
-- Horario de Tatwas.
-- Hora más próxima de tatwa.
+- Tabla de Horario de Tatwas.
+- Hora más próxima de ocurrir un tatwa.
 - Horario de un tatwa en concreto.
 - Solucionar fecha de sol para día de hoy.
 - Hacer interfaz.
@@ -14,7 +17,7 @@ Programa para calcular tatwas
 - Pylint
 - Mejorar documentación.
 - Separar util.py en util y api
-- Crear paquete a partir de util.py
+- Crear paquete api a partir de util.py
 """
 
 import util as ut
@@ -25,13 +28,60 @@ from ast import literal_eval
 
 def evaluar_coordenadas(entrada):
     try:
-        coordenadas = literal_eval(entrada)
-    except ValueError:
-        raise ValueError("ERROR: Coordenadas en formato incorrecto.")
+        return ut.convertir_coordenadas(*literal_eval(entrada))
+    except (ValueError, SyntaxError, TypeError) as err:
+        #print(err) Log
+        raise ValueError("Introduce solo dos valores (latitud, longitud)"
+                         " separadas por coma.")
 
+
+def evaluar_fecha(entrada, formato="%d-%m-%Y").):
+    """
+    Evaluar una cadena de entrada para convertirla en datetime.date
+    usando un formato determinado.
+
+    Argumentos:
+        entrada: cadena a evaluar.
+        formato: formato usado para evaluar la cadena.
+
+    Retorno:
+        Valor datetime.time creado a partir de la cadena de entrada.
+
+    Excepciones:
+        ValueError si la cadena de entrada no está en el formato
+            especificado por argumento.
+    """
     try:
-        return ut.convertir_coordenadas(*coordenadas)
-    except TypeError:
+        return dt.datetime.strptime(entrada, formato).date()
+    except (ValueError, TypeError) as err:
+        #print(err) Log
+        raise ValueError("Introduce la fecha en formato {}".format(formato))
+        
+
+
+def evaluar_hora(entrada, formato="%H-%M-%S"):
+    """
+    Evaluar una cadena de entrada para convertirla en datetime.time
+    usando un formato determinado.
+
+    Argumentos:
+        entrada: cadena a evaluar.
+        formato: formato usado para evaluar la cadena.
+
+    Retorno:
+        Valor datetime.time creado a partir de la cadena de entrada.
+
+    Excepciones:
+        ValueError si la cadena de entrada no está en el formato
+            especificado por argumento.
+    """
+    try:
+        return dt.datetime.strptime(entrada, formato).time()
+    except (ValueError, TypeError) as err:
+        #print(err) Log
+        raise ValueError("Introduce la fecha en formato HH:MM:SS.")
+        
+
 
 def main():
     """

@@ -41,7 +41,7 @@ EVENTOS_SOL_DESCRIPCION = \
      "amanecer_astronomico": "inicio del amanecer astronómico",
      "ocaso_astronomico": "fin del ocaso astronómico"} 
 
-# Rango coordenadas API Google MAPS
+# Rango coordenadas válido (basado en API Google MAPS)
 RANGO_LAT = {"max": 90,  "min": -90}
 RANGO_LNG = {"max": 180, "min": -180}
 
@@ -55,7 +55,7 @@ def restar_horas(hora1, hora2, es_mismo_dia=True):
     Argumentos:
         hora1: primer operando hora. Es de tipo datetime.time.
         hora2: segundo operando hora. Es de tipo datetime.time.
-        es_mismo_dia: True hora2 pertenecen al mismo día que hora1. 
+        es_mismo_dia: True si hora2 pertenecen al mismo día que hora1.
             False si hora2 pertenece al día siguiente que hora1.
 
     Retorno:
@@ -110,6 +110,54 @@ def convertir_coordenadas(latitud, longitud):
 
 
 
+def evaluar_coordenadas(entrada):
+    """
+    Evaluar una cadena de entrada para convertirla en una tupla de
+    dos elementos float: (latitud, longitud)
+
+    Argumentos:
+        entrada: cadena a evaluar.
+
+    Retorno:
+        Tupla (latitud, longitud) donde cada coordenada es float.
+
+    Excepciones:
+        ValueError si la cadena introducida no está en un formato 
+            correcto (latitud, longitud).
+    """
+    try:
+        return convertir_coordenadas(*literal_eval(entrada))
+    except (ValueError, SyntaxError, TypeError) as err:
+        #print(err) Log
+        raise ValueError("Introduce solo dos valores (latitud, longitud)"
+                         " separadas por coma.")
+
+
+
+def evaluar_fechahora(entrada, formato="%d-%m-%Y %H:%M:%S"):
+    """
+    Evaluar una cadena de entrada para convertirla en un objeto de
+    tipo datetime.datetime usando un formato determinado.
+
+    Argumentos:
+        entrada: cadena a evaluar.
+        formato: formato usado para evaluar la cadena.
+
+    Retorno:
+        Objeto datetime.datetime a partir de la cadena de entrada.
+
+    Excepciones:
+        ValueError si la cadena de entrada no está en el formato
+            especificado por argumento.
+    """
+    try:
+        return dt.datetime.strptime(entrada, formato)
+    except (ValueError, TypeError) as err:
+        #print(err) Log
+        raise ValueError("Introduce fecha/hora en formato {}".format(formato))
+        
+
+
 def obtener_actual_timestamp():
     """
     Obtener el actual timestamp UTC.
@@ -153,7 +201,7 @@ def obtener_fechahora(zona_horaria, timestamp=None):
     try:
         return dt.datetime.fromtimestamp(timestamp, tz.timezone(zona_horaria))
     except tz.UnknownTimeZoneError as err:
-        raise ValueError("Zona horaria inválida {}".format(err))
+        raise ValueError("Zona horaria inválida: {}".format(err))
 
 
 

@@ -604,23 +604,31 @@ class EntornoTatwas:
             raise ValueError("No se han fijado las coordenadas")
 
         if self._fecha_sol is None:
-            self._fecha_sol_usada = \
-                ut.obtener_fechahora(self._zona_horaria).date()    
+            fechahora_actual = ut.obtener_fechahora(self._zona_horaria)    
+            self._fecha_sol_usada = fechahora_actual.date()
+                
         else:
             self._fecha_sol_usada = self._fecha_sol
 
         try:
             self._fechahoras_eventos_sol = \
                 ut.obtener_fechahoras_eventos_sol(self._coordenadas["lat"], 
-                                                    self._coordenadas["lng"], 
-                                                    self._fecha_sol_usada)
+                                                  self._coordenadas["lng"], 
+                                                  self._fecha_sol_usada)
+            if self._fecha_sol is None:
+                fechahoras_eventos_sol_ayer = \
+                    ut.obtener_fechahoras_eventos_sol(self._coordenadas["lat"], 
+                                                      self._coordenadas["lng"], 
+                                                      self._fecha_sol_usada)
+
+                for evento, fechahora in self._fechahoras_eventos_sol.items():
+                    if fechahora_actual.time() < fechahora:
+                        self._fechahoras_eventos_sol[evento] = \
+                            fechahoras_eventos_sol_ayer[evento]
+        
         except RuntimeError as err:
-            print(err)
+            print(err) # Log
             raise RuntimeError("Error al obtener las horas de eventos del sol")
-        else:
-            if len(self._fechahoras_eventos_sol) == 0:
-                raise RuntimeError("La lista obtenida de horas de los eventos"
-                                   " del sol está vacía.")
               
         self._tatwas = None
         self._hora_tw_usada = None
