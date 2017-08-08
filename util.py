@@ -431,10 +431,11 @@ def obtener_dato(mensaje, evaluar=None, comprobar=None, fin=None):
             evaluado en caso de evaluarse) es correcto. Si es None, 
             no se realiza ninguna comprobación del dato. Debe lanzar
             ValueError si el dato no pasa la comprobación.
-        fin: cadena o tupla de cadenas de finalización que interrumpe 
+        fin: cadena o lista de cadenas de finalización que interrumpe 
             lectura por teclado. Si es None no se realiza ninguna 
             comprobación de finalización de la cadena introducida por
-             teclado.
+            teclado. Si se desea la cadena vacía como condición de
+            finalización indicar "".
 
     Retorno:
         Los posibles valores devueltos son:
@@ -444,22 +445,29 @@ def obtener_dato(mensaje, evaluar=None, comprobar=None, fin=None):
 
     Excepciones:
         TypeError si evaluar o comprobar no son funciones, o 
-            fin no es str o tuple.
+            fin no es str o tupla de str.
     """
+    if isinstance(fin, str):
+        fin_lista = [fin.lower()]
+    elif fin is None:
+        fin_lista = []
+    else:
+        try:
+            fin_lista = [x.lower() for x in fin]
+        except (TypeError, AttributeError):
+            raise TypeError("La condición de finalización debe ser un str o"
+                           " una lista de str.")
+    
     while True:
         dato = input(mensaje).strip()
 
-        if not isinstance(fin, (str, tuple)):
-            raise TypeError("Condición de finalización debe ser str o tuple")
-
-        if isinstance(fin, str) and dato.lower() == fin.lower() \
-           or isinstance (fin, tuple) and dato.lower() in map(str.lower, fin))
+        if dato.lower() in fin_lista:
             return None
 
         if evaluar is not None:
             try:
                 dato = evaluar(dato)
-            except ValueError as err:
+            except (ValueError, SyntaxError) as err:
                 print("Error al evaluar el dato introducido: {}".format(err))
                 continue
 
