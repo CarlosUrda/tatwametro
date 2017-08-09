@@ -6,6 +6,7 @@ Módulo de gestión de tatwas
 
 import datetime as dt
 import util as ut
+import pytz as tz
 
 
 class Tatwa:
@@ -417,11 +418,11 @@ class EntornoTatwas:
         """
         self._coordenadas = None
         self._fecha_sol = None
-        self._fecha_sol_usada = None
         self._direccion = None
         self._zona_horaria = None
+        self._fecha_tw = None
         self._hora_tw = None
-        self._hora_tw_usada = None
+        self._fechahora_tw = None
         self._fechahoras_eventos_sol = None
         self._tatwas = None
 
@@ -429,11 +430,12 @@ class EntornoTatwas:
     def __repr__(self):
         return ("{}: {}\n"*9).format("Coordenadas", self._coordenadas, 
                                      "Fecha sol", self._fecha_sol, 
-                                     "Fecha sol usada", self._fecha_sol_usada,
                                      "Dirección", self._direccion, 
                                      "Zona horaria", self._zona_horaria, 
                                      "Hora tatwa", self._hora_tw,
-                                     "Hora tatwa usada", self._hora_tw_usada,
+                                     "Fecha tatwa", self._fecha_tw,
+                                     "Fechahora tatwa usada", 
+                                     self._fechahora_tw,
                                      "Fechahoras eventos sol", 
                                      self._fechahoras_eventos_sol, 
                                      "Tatwas", self._tatwas)
@@ -449,6 +451,17 @@ class EntornoTatwas:
         """
         return self._direccion
 
+
+    @property
+    def zona_horaria(self):
+        """
+        Getter del atributo zona_horaria.
+
+        Retorno:
+            Devuelve la zona horaria fijada por las coordenadas.
+                None si no ha sido fijada.
+        """
+        return self._zona_horaria
 
 
     def fijar_direccion(self, direccion, localizable=False):
@@ -534,17 +547,13 @@ class EntornoTatwas:
         self._coordenadas = {"lat": latitud, "lng": longitud}
         self._fechahoras_eventos_sol = None
         self._tatwas = None
-        self._hora_tw_usada = None
-        self._fecha_sol_usada = None
+        self._fechahora_tw = None
 
 
-    def fijar_fechahoras_eventos_sol(self, salida = None, puesta = None, 
-                                     mediodia = None, duracion_dia = None,
-                                     amanecer_civil = None, ocaso_civil = None, 
+    def fijar_fechahoras_eventos_sol(self, salida = None, 
+                                     amanecer_civil = None, 
                                      amanecer_nautico = None, 
-                                     ocaso_nautico = None, 
-                                     amanecer_astronomico = None, 
-                                     ocaso_astronomico = None):
+                                     amanecer_astronomico = None):
         """
         Fijar las horas de los eventos del sol manualmente. Los datos
         de coordenadas, localización y fecha se eliminan. Los eventos
@@ -552,15 +561,9 @@ class EntornoTatwas:
 
         Argumentos:
             salida: hora de salida del sol. Tipo datetime.datetime.
-            puesta: hora de puesta del sol. Tipo datetime.datetime.
-            mediodia: hora del sol al mediodía. Tipo datetime.datetime.
-            duracion_dia: duración del día. Tipo datetime.timedelta.
             amanecer_civil: hora del amanecer civil datetime.datetime.
-            ocaso_civil: hora del ocaso civil. Tipo datetime.datetime.
             amanecer_nautico: hora amanecer náutico datetime.datetime.
-            ocaso_nautico: hora ocaso náutico. Tipo datetime.datetime.
             amanecer_astronómico: hora ama astronómico datet.datetime.
-            ocaso_astronómico: hora ocaso astronómico dateti.datetime.
 
         Excepciones:
             TypeError si alguno de los argumentos no es de tipo 
@@ -571,29 +574,26 @@ class EntornoTatwas:
         for evento, fechahora in locals().items():
             if fechahora is None or evento == "self":
                 continue
-            if evento == "duracion_dia":
-                if not isinstance(fechahora, dt.timedelta):
-                    self._fechahoras_eventos_sol = None
-                    raise TypeError("Duración {} no es datetime.timedelta"
-                                    .format(evento))
-            elif not isinstance(fechahora, dt.datetime):
-                self._fechahoras_eventos_sol = None
-                raise TypeError("Hora {} no es datetime.time".format(evento))
             
-            self._fechahoras_eventos_sol[evento] = fechahora
+            if not isinstance(fechahora, dt.datetime):
+                self._fechahoras_eventos_sol = None
+                raise TypeError("{} no es datetime.datetime".format(evento))
+            
+            self._fechahoras_eventos_sol[evento] = \
+                fechahora.replace(tzinfo=tz.timezone(self._zona_horaria))
 
         self._fecha_sol = None
-        self._fecha_sol_usada = None
         self._coordenadas = None
-        self._hora_tw_usada = None
+        self._fechahora_tw = None
         self._direccion = None
         
 
     def actualizar_fechahoras_eventos_sol(self):
         """
-        Actualizar las horas de los eventos del sol a partir de
-        coordenadas y fecha elegida. Para poder obtener las horas es 
-        necesario que las coordenadas estén ya fijados internamente.
+        Actualizar las horas de los eventos del sol en las
+        coordenadas y fecha elegida. Si la fecha elegida es None
+        se obtienen las horas de los últimos eventos del sol 
+        ocurridos antes de la fecha y hora actuales. 
 
         Excepciones:
             ValueError si la fecha o las coordenadas no han sido fijadas.
@@ -604,25 +604,29 @@ class EntornoTatwas:
             raise ValueError("No se han fijado las coordenadas")
 
         if self._fecha_sol is None:
-            fechahora_actual = ut.obtener_fechahora(self._zona_horaria)    
-            self._fecha_sol_usada = fechahora_actual.date()
-                
+            fechahora_actual = ut.obtener_fechahora(self._zona_horaria)
+            fecha_sol = fechahora_actual.date()
+            fecha_sol_ayer = (fechahora_actual - dt.timedelta(days=1)).date() 
         else:
-            self._fecha_sol_usada = self._fecha_sol
+            fecha_sol = self._fecha_sol
 
         try:
-            self._fechahoras_eventos_sol = \
+            fechahoras_eventos_sol = \
                 ut.obtener_fechahoras_eventos_sol(self._coordenadas["lat"], 
                                                   self._coordenadas["lng"], 
-                                                  self._fecha_sol_usada)
+                                                  fecha_sol)
+            self._fechahoras_eventos_sol = \
+                {evto: fhora for evto, fhora in fechahoras_eventos_sol.items() 
+                                if evto in self._EVENTOS_SOL_PARA_TATWAS}
+
             if self._fecha_sol is None:
                 fechahoras_eventos_sol_ayer = \
                     ut.obtener_fechahoras_eventos_sol(self._coordenadas["lat"], 
                                                       self._coordenadas["lng"], 
-                                                      self._fecha_sol_usada)
-
+                                                      fecha_sol_ayer)
+    
                 for evento, fechahora in self._fechahoras_eventos_sol.items():
-                    if fechahora_actual.time() < fechahora:
+                    if fechahora_actual < fechahora:
                         self._fechahoras_eventos_sol[evento] = \
                             fechahoras_eventos_sol_ayer[evento]
         
@@ -631,7 +635,7 @@ class EntornoTatwas:
             raise RuntimeError("Error al obtener las horas de eventos del sol")
               
         self._tatwas = None
-        self._hora_tw_usada = None
+        self._fechahora_tw = None
 
 
     def calcular_tatwas(self):
@@ -646,34 +650,31 @@ class EntornoTatwas:
         if self._fechahoras_eventos_sol is None:
             raise ValueError("No se han obtenido las horas de eventos del sol")
    
-        if self._hora_tw is None:
-            self._hora_tw_usada = \
-                ut.obtener_fechahora(self._zona_horaria).time()  
-        else:
-            self._hora_tw_usada = self._hora_tw
-    
+        self._fechahora_tw = ut.combinar_fecha_hora(self._fecha_tw,
+                                                    self._hora_tw,
+                                                    self._zona_horaria)
         self._tatwas = dict()
 
-        for evento in self._EVENTOS_SOL_PARA_TATWAS:
-            fechahora_evento = self._fechahoras_eventos_sol.get(evento)
-            if fechahora_evento is None:
+        for evento, fechahora_evento in self._fechahoras_eventos_sol.items():
+            if self._fechahora_tw < fechahora_evento \
+               or (self._fechahora_tw >= 
+                   fechahora_evento + dt.timedelta(1, Tatwa.SEGUNDOS_TATWA)):
+                self._tatwas[evento] = None
                 continue
 
-            es_mismo_dia = self._hora_tw_usada >= fechahora_evento.time()
-            segundos_evento_a_hora = \
-                -ut.restar_horas(fechahora_evento.time(), self._hora_tw_usada, 
-                                 es_mismo_dia) 
-            posicion_tatwa = segundos_evento_a_hora // Tatwa.SEGUNDOS_TATWA + 1
+            segundos_evento_tw = \
+                (self._fechahora_tw - fechahora_evento).total_seconds()
+            posicion_tatwa = segundos_evento_tw // Tatwa.SEGUNDOS_TATWA + 1
             segundos_restantes = Tatwa.SEGUNDOS_TATWA - \
-                                 segundos_evento_a_hora % Tatwa.SEGUNDOS_TATWA
+                                 segundos_evento_tw % Tatwa.SEGUNDOS_TATWA
             segundos_inicio = (posicion_tatwa - 1) * Tatwa.SEGUNDOS_TATWA
             fechahora_inicio = fechahora_evento \
                                + dt.timedelta(seconds=segundos_inicio)
             fechahora_fin = fechahora_inicio \
                             + dt.timedelta(seconds=Tatwa.SEGUNDOS_TATWA)
-            
+        
             self._tatwas[evento] = \
-                {"tatwa": Tatwa(posicion_tatwa), 
+                {"tatwa": Tatwa(int(posicion_tatwa)), 
                  "fechahora_fin": fechahora_fin, 
                  "fechahora_inicio": fechahora_inicio,
                  "segundos_restantes": 
@@ -681,9 +682,10 @@ class EntornoTatwas:
 
         if len(self._tatwas) == 0:
             self._tatwas = None
-            self._hora_tw_usada = None
-            raise ValueError("No hay ninguna hora de eventos para calcular"
-                             " tatwas: {}".format(_EVENTOS_SOL_PARA_TATWAS))
+            self._fechahora_tw = None
+            raise ValueError("No hay ninguna hora de los siguientes eventos"
+                             " para calcular tatwas: {}"
+                             .format(_EVENTOS_SOL_PARA_TATWAS))
 
 
     @property
@@ -698,41 +700,32 @@ class EntornoTatwas:
         return self._fecha_sol
 
 
-    def fijar_fecha_sol(self, dia = None, mes = 1, anno = 1900):
+    @fecha_sol.setter
+    def fecha_sol(self, fecha):
         """
         Modificar la fecha en la cual se calcularán los tatwas.
 
         Argumentos:
-            dia: día de la fecha. Si es None, se toma la fecha actual.
-            mes: número de mes de la fecha.
-            anno: año de la fecha.
+            fecha: Objeto datetime.date con la fecha a calcular los
+                eventos del sol. None para fecha local actual.
 
         Excepciones:
-            ValueError o TypeError si los argumentos son incorrectos.
+            TypeError si los argumentos son incorrectos.
         """
-        if dia is None:
-            self._fecha_sol = None 
-        else:
-            try:
-                self._fecha_sol = dt.date(anno, mes, dia)    
-            except ValueError as err:
-                print(err)
-                raise ValueError("Error al crear tipo datetime.date")
-            except TypeError as err:
-                print(err)
-                raise TypeError("Error al crear tipo datetime.date")
+        if fecha is not None and not isinstance(fecha, dt.date):
+            raise TypeError("Argumento no es de tipo datetime.date")
             
+        self._fecha_sol = fecha
         self._fechahoras_eventos_sol = None
-        self._hora_tw_usada = None
-        self._fecha_sol_usada = None
+        self._fechahora_tw = None
         self._tatwas = None
 
 
     @property
     def hora_tw(self):
         """
-        Getter que obtiene la hora en la cual se calcularán los tatwas.
-        La hora es de tipo datetime.time
+        Getter que obtiene la hora local en la cual se calcularán 
+        los tatwas.
 
         Retorno:
             Valor datetime.time con la hora establecida.
@@ -740,32 +733,56 @@ class EntornoTatwas:
         return self._hora_tw
 
 
-    def fijar_hora_tw(self, horas = None, minutos = 0, segundos = 0):
+    @hora_tw.setter
+    def hora_tw(self, hora):
         """
-        Modificar internamente la hora en la cual se calcularán los
-        tatwas.
+        Modificar internamente la hora en la cual se calcularán
+        los tatwas.
 
         Argumentos:
-            horas: valor de las horas de la hora. Si es None se toma
-                la hora actual.
-            minutos: valor de los minutos de la hora. 
-            segundos: valor de los segundos de la hora. Por defecto 0. 
+            hora: objeto datetime.time con la hora a calcular los 
+                tatwas. None para la hora local actual.
 
         Excepciones:
-            ValueError o TypeError si los argumentos son incorrectos.
+            TypeError si el argumentos es incorrectos.
         """
-        if horas is None:
-            self._hora_tw = None
-        else:
-            try:
-                self._hora_tw = dt.time(horas, minutos, segundos)    
-            except ValueError as err:
-                print(err)
-                raise ValueError("Error al crear tipo datetime.time.")
-            except TypeError as err:
-                print(err)
-                raise TypeError("Error al crear tipo datetime.time.")
+        if hora is not None and not isinstance(hora, dt.time):
+            raise TypeError("Argumento no es de tipo datetime.time")
 
+        self._hora_tw = hora
         self._tatwas = None
-        self._hora_tw_usada = None
-                
+        self._fechahora_tw = None
+   
+   
+             
+    @property
+    def fecha_tw(self):
+        """
+        Getter que obtiene la fecha en la cual se calcularán 
+        los tatwas.
+
+        Retorno:
+            Valor datetime.date con la fecha establecida.
+        """
+        return self._fecha_tw
+
+
+    @fecha_tw.setter
+    def fecha_tw(self, fecha):
+        """
+        Modificar internamente la fecha local en la cual se calcularán
+        los tatwas.
+
+        Argumentos:
+            fecha: objeto datetime.date con la fecha local a
+                calcular los tatwas.
+
+        Excepciones:
+            TypeError si el argumentos es incorrectos.
+        """
+        if fecha is not None and not isinstance(fecha, dt.date):
+            raise TypeError("Argumento no es de tipo datetime.date")
+
+        self._fecha_tw = fecha
+        self._tatwas = None
+        self._fechahora_tw = None
