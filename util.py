@@ -183,27 +183,29 @@ def obtener_fechahora(zona_horaria, timestamp=None):
     sistema)
 
     Argumentos:
-        latitud: latitud donde obtener la fecha y hora.
-        longitud: longitud donde obtener la fecha y hora.
+        zona_horaria: objeto pytz.timezone con la zona horaria deonde
+            obtener la fecha y hora.
         timestamp: valor int representando el número de segundos en 
             UTC desde el 01/01/1970 (tiempo UNIX). Si es None se
             toma el momento presente.
 
     Retorno:
-        Objeto datetime.datetime con fecha y hora establecida en las 
-        coordenadas para un timestamp UTC.
+        Objeto datetime.datetime con fecha y hora local establecida 
+        en las coordenadas para un timestamp UTC.
     
     Excepciones:
-        ValueError si la zona horaria no es válida.
+        ValueError, TypeError si argumentos erróneos.
         RuntimeError si no se obtiene el timestamp actual.
     """
     if timestamp is None:
         timestamp = obtener_actual_timestamp()
 
     try:
-        return dt.datetime.fromtimestamp(timestamp, tz.timezone(zona_horaria))
-    except tz.UnknownTimeZoneError as err:
-        raise ValueError("Zona horaria inválida: {}".format(err))
+        return dt.datetime.fromtimestamp(timestamp, zona_horaria)
+    except ValueError as err:
+        raise ValueError("Zona horaria o timestamp inválido: {}".format(err))
+    except TypeError as err:
+        raise TypeError("Zona horaria o timestamp inválido: {}".format(err))
 
 
 
@@ -216,7 +218,7 @@ def combinar_fecha_hora(fecha = None, hora = None, zona_horaria = None):
         hora: objeto datetime.time. Si None se toma la hora actual.
         fecha: objeto datetime.date. Si None se toma la fecha actual.
         zona_horaria: zona horaria a usar para obtener la fecha y hora
-            actuales.
+            actuales. Objeto pytz.timezone
 
     Retorno:
         Objeto datetime.datetime con la fecha y hora unidas.
@@ -239,12 +241,7 @@ def combinar_fecha_hora(fecha = None, hora = None, zona_horaria = None):
     elif not isinstance(fecha, dt.date):
         raise TypeError("Argumento fecha no es datetime.date.")
 
-    try:
-        tzhoraria = tz.timezone(zona_horaria)
-    except tz.UnknownTimeZoneError as err:
-        raise ValueError("Zona horaria inválida: {}".format(err))
-
-    return dt.datetime.combine(fecha, hora).replace(tzinfo=tzhoraria)
+    return zona_horaria.localize(dt.datetime.combine(fecha, hora))
 
 
 
@@ -312,9 +309,9 @@ def API_timezonedb_get(localizacion, timestamp=None):
                             datos["nombre_pais"], datos["codigo_pais"])
 
     tzone = tz.timezone(datos["zona_horaria"])
-    datos["fechahora"] = \
-        dt.datetime.utcfromtimestamp(datos["timestamp"]).replace(tzinfo=tzone)
-
+    fechahora = dt.datetime.utcfromtimestamp(datos["timestamp"])
+    datos["fechahora"] = tzone.localize(fechahora)
+    
     return datos
  
 
@@ -367,9 +364,9 @@ def API_google_timezone(latitud, longitud, timestamp=None):
     datos["timestamp"] = timestamp + datos["segundos_desfase"]
     
     tzone = tz.timezone(datos["zona_horaria"])
-    datos["fechahora"] = \
-        dt.datetime.utcfromtimestamp(datos["timestamp"]).replace(tzinfo=tzone)
-
+    fechahora = dt.datetime.utcfromtimestamp(datos["timestamp"])
+    datos["fechahora"] = tzone.localize(fechahora)
+    
     return datos
 
 
@@ -421,7 +418,7 @@ def API_google_geocode(localizacion):
 
 
 
-def obtener_fechahoras_eventos_sol(latitud, longitud, fecha=None):
+def API_sunrise_sunset(latitud, longitud, fecha=None):
     """
     Obtener los datos de las horas de la puesta, salida y crepúsculo
     del sol usando la API sunrise-sunset.org.
@@ -429,23 +426,22 @@ def obtener_fechahoras_eventos_sol(latitud, longitud, fecha=None):
     Argumentos:
         latitud: latitud donde obtener las horas del sol.
         longitud: longitud donde obtener las horas del sol.
-        fecha: día en el cual obtener las horas del sol. Tiene que ser
-            tipo datetime.date. Por defecto se toma la fecha actual de
-            la localización solicitada.
+        fecha: fecha en el cual obtener las horas del sol. Tiene que
+            ser tipo datetime.date. Por defecto se toma la fecha actual
+            local de la localización solicitada.
     
     Retorno:
-        Diccionario con las horas de cada evento del sol en formato 
-            datetime.datetime, excepto "duracion_dia" que tiene formato 
-            datetime.timdelta. 
+        Diccionario con las hora y fecha UTC de cada evento del sol 
+            en formato datetime.datetime, excepto "duracion_dia" que 
+            tiene formato datetime.timdelta. 
     
     Excepciones:
         RuntimeError en caso de no obtener resultado de la API. Contiene
             el tipo de error devuelto por la API.
         TypeError si los tipos de argumentos no son correctos.
     """
-    datos_api = API_timezonedb_get((latitud, longitud))
-    zona_horaria = datos_api["zona_horaria"]
     if fecha is None:
+        datos_api = API_timezonedb_get((latitud, longitud))
         fecha = datos_api["fechahora"].date()
     elif not isinstance(fecha, dt.date):
         raise TypeError("La fecha no es de tipo datetime.date o None.")
@@ -464,11 +460,9 @@ def obtener_fechahoras_eventos_sol(latitud, longitud, fecha=None):
         if evento == "duracion_dia":
             fechahoras_eventos_sol["duracion_dia"] = dt.timedelta(seconds=dato)
             continue
-        
-        fechahora_utc = dt.datetime.strptime(dato, "%Y-%m-%dT%H:%M:%S+00:00")
-        timestamp = fechahora_utc.replace(tzinfo=dt.timezone.utc).timestamp()
-        fechahoras_eventos_sol[evento] = obtener_fechahora(zona_horaria, 
-                                                           timestamp)
+      
+        fechahora = dt.datetime.strptime(dato, "%Y-%m-%dT%H:%M:%S+00:00")  
+        fechahoras_eventos_sol[evento] = tz.UTC.localize(fechahora)
 
     return fechahoras_eventos_sol
 

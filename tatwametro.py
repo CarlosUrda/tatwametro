@@ -19,6 +19,7 @@ común para escribir logs.
 - Separar util.py en util y api
 - Crear paquete api a partir de util.py
 - No se puede acceder al resultado de los tatwas mediante _tatwas.
+- Guardar zona horaria como tz.timezone en lugar de como cadena.
 """
 
 import util as ut
@@ -45,8 +46,8 @@ def main():
           .format(entorno_tw.coordenadas, entorno_tw.direccion))
 
     entorno_tw.fecha_sol = \
-        ut.obtener_dato("Introduce fecha eventos del sol [DD-MM-YYY] (fecha"
-                        " últimos eventos por defecto): ",
+        ut.obtener_dato("Introduce fecha salida del sol [DD-MM-YYYY] (fecha"
+                        " última salida por defecto): ",
                         lambda x: ut.evaluar_fechahora(x, "%d-%m-%Y"), fin="")
 
     print("\nObteniendo las horas de salida del sol....\n")
@@ -58,17 +59,19 @@ def main():
     entorno_tw.hora_tw = \
         ut.obtener_dato("Introduce la hora a calcular tatwa [HH:MM:SS] (hora"
                         " actual por defecto): ",
-                        lambda x: ut.evaluar_fechahora(x, "%H:%M:%S"), fin="")
+                        lambda x: ut.evaluar_fechahora(x, "%H:%M:%S").time(), 
+                        fin="")
     entorno_tw.fecha_tw = \
         ut.obtener_dato("Introduce fecha a calcular tatwa [DD-MM-YYYY] (fecha"
                         " actual por defecto): ",
-                        lambda x: ut.evaluar_fechahora(x, "%d-%m-%Y"), fin="")
+                        lambda x: ut.evaluar_fechahora(x, "%d-%m-%Y").date(), 
+                        fin="")
 
     print("\nCalculando los tatwas....\n")
     entorno_tw.calcular_tatwas()
     
     print(" INFORMACIÓN DEL TATWA CALCULADO ({}) "
-          .format(entorno_tw._fechahora_tw_usada.strftime("%H:%M:%S %d/%m/%Y"))
+          .format(entorno_tw._fechahora_tw.strftime("%H:%M:%S %d/%m/%Y"))
           .center(ancho_pantalla, "·"))
     if entorno_tw._tatwas["salida"] is None:
         print("El tatwa no puede ser calculado: fechas incoherentes")
