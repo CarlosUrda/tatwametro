@@ -418,7 +418,7 @@ def API_google_geocode(localizacion):
 
 
 
-def API_sunrise_sunset(latitud, longitud, fecha=None):
+def API_sunrise_sunset(latitud, longitud, fecha=None, local=False):
     """
     Obtener los datos de las horas de la puesta, salida y crepúsculo
     del sol usando la API sunrise-sunset.org.
@@ -429,6 +429,8 @@ def API_sunrise_sunset(latitud, longitud, fecha=None):
         fecha: fecha en el cual obtener las horas del sol. Tiene que
             ser tipo datetime.date. Por defecto se toma la fecha actual
             local de la localización solicitada.
+        local: flag para indicar si las horas a obtener son locales
+            o UTC
     
     Retorno:
         Diccionario con las hora y fecha UTC de cada evento del sol 
@@ -440,8 +442,10 @@ def API_sunrise_sunset(latitud, longitud, fecha=None):
             el tipo de error devuelto por la API.
         TypeError si los tipos de argumentos no son correctos.
     """
-    if fecha is None:
+    if local or fecha is None:
         datos_api = API_timezonedb_get((latitud, longitud))
+
+    if fecha is None:
         fecha = datos_api["fechahora"].date()
     elif not isinstance(fecha, dt.date):
         raise TypeError("La fecha no es de tipo datetime.date o None.")
@@ -462,7 +466,11 @@ def API_sunrise_sunset(latitud, longitud, fecha=None):
             continue
       
         fechahora = dt.datetime.strptime(dato, "%Y-%m-%dT%H:%M:%S+00:00")  
-        fechahoras_eventos_sol[evento] = tz.UTC.localize(fechahora)
+        if local:
+            zona_horaria = tz.timezone(datos_api["zona_horaria"])
+            fechahoras_eventos_sol[evento] = zona_horaria.fromutc(fechahora)
+        else:
+            fechahoras_eventos_sol[evento] = tz.UTC.localize(fechahora)
 
     return fechahoras_eventos_sol
 
