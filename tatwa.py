@@ -15,7 +15,7 @@ class Tatwa:
     """
     
     # Constantes de clase
-    SEGUNDOS_TATWA = 24 * 60
+    SEGUNDOS_TATWA = 24 * 60 #+ 20
     NOMBRES_TATWAS = ("akash", "vayu", "tejas", "prithvi", "apas") 
     
 
@@ -656,7 +656,7 @@ class EntornoTatwas:
         """
         if self._fechahoras_eventos_sol is None:
             raise ValueError("No se han obtenido las horas de eventos del sol")
-   
+  
         self._fechahora_tw = ut.combinar_fecha_hora(self._fecha_tw,
                                                     self._hora_tw,
                                                     self._zona_horaria)

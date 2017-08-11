@@ -78,6 +78,9 @@ def main():
         print("El tatwa no puede ser calculado: fechas incoherentes")
     else:
         print("Nombre:", entorno_tw._tatwas["salida"]["tatwa"])
+        print("Posición/Ciclo: {} / {}"
+              .format(entorno_tw._tatwas["salida"]["tatwa"].posicion,
+                      entorno_tw._tatwas["salida"]["tatwa"].ciclo))
         print("Hora inicio:", 
               entorno_tw._tatwas["salida"]["fechahora_inicio"].time())
         print("Hora fin:", 

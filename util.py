@@ -183,7 +183,8 @@ def obtener_fechahora(zona_horaria, timestamp=None):
     sistema)
 
     Argumentos:
-        zona_horaria: objeto pytz.timezone con la zona horaria deonde
+        zona_horaria: implementación de datetime.tzinfo 
+            (tz.tzfile.DstTzInfo, tz.UTC)) con la zona horaria donde
             obtener la fecha y hora.
         timestamp: valor int representando el número de segundos en 
             UTC desde el 01/01/1970 (tiempo UNIX). Si es None se
@@ -218,32 +219,49 @@ def combinar_fecha_hora(fecha = None, hora = None, zona_horaria = None):
         hora: objeto datetime.time. Si None se toma la hora actual.
         fecha: objeto datetime.date. Si None se toma la fecha actual.
         zona_horaria: zona horaria a usar para obtener la fecha y hora
-            actuales. Objeto pytz.timezone
+            actuales. Implementación de datetime.tzinfo
+            (pytz.tzfile.DstTzInfo o pytz.UTC)
 
     Retorno:
         Objeto datetime.datetime con la fecha y hora unidas.
 
     Excepciones:
-        ValueError si zona_horaria tiene un valor no válido.
         TypeError si hora y fecha no son datetime.time y datetime.date
-            respectivamente.
+            respectivamente, o zona_horaria no es una implementación
+            de datetime.tzinfo (tz.tzfile.DstTzInfo, tz.UTC):
+        RuntimeError si no se puede acceder al servidor ntp para
+            obtener la hora actual.
     """
-    if hora is None and fecha is None:
-        return obtener_fechahora(zona_horaria)
+    if hora is None or fecha is None:
+        try:
+            fechahora = obtener_fechahora(zona_horaria)
+        except TypeError as err:
+            print(err) #Log
+            raise TypeError("combinar_fecha_hora: Inválida zona_horaria")
+
+        if hora is None:
+            if fecha is None:
+                return fechahora
+            else:
+                hora = fechahora.time()
+        else:
+            fecha = fechahora.date()
+    elif zona_horaria is None:
+        try:
+            return dt.datetime.combine(fecha, hora)
+        except TypeError as err:
+            print(err) #Log
+            raise TypeError("combinar_fecha_hora: Fecha u hora inválida.")
+    elif not isinstance(zona_horaria, (tz.tzfile.DstTzInfo, tz.UTC)):
+        raise TypeError("combinar_fecha_hora: zona_horaria inválida.")
     
-    if hora is None:
-        hora = obtener_fechahora(zona_horaria).time()
-    elif not isinstance(hora, dt.time):
-        raise TypeError("Argumento hora no es datetime.time.")
+    try:
+        return zona_horaria.localize(dt.datetime.combine(fecha, hora))
+    except TypeError as err:
+        print(err) #Log
+        raise TypeError("combinar_fecha_hora: Fecha u hora inválida")
+                
     
-    if fecha is None:
-        fecha = obtener_fechahora(zona_horaria).date()
-    elif not isinstance(fecha, dt.date):
-        raise TypeError("Argumento fecha no es datetime.date.")
-
-    return zona_horaria.localize(dt.datetime.combine(fecha, hora))
-
-
 
 def API_timezonedb_get(localizacion, timestamp=None):
     """
