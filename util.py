@@ -252,7 +252,8 @@ def combinar_fecha_hora(fecha = None, hora = None, zona_horaria = None):
         except TypeError as err:
             print(err) #Log
             raise TypeError("combinar_fecha_hora: Fecha u hora inválida.")
-    elif not isinstance(zona_horaria, (tz.tzfile.DstTzInfo, tz.UTC)):
+    elif not isinstance(zona_horaria, tz.tzfile.DstTzInfo) \
+         and zona_horaria != tz.UTC:
         raise TypeError("combinar_fecha_hora: zona_horaria inválida.")
     
     try:
