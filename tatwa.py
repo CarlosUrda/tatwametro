@@ -7,6 +7,8 @@ Módulo de gestión de tatwas
 import datetime as dt
 import util as ut
 import pytz as tz
+import fechahora as fh
+import api
 
 
 class Tatwa:
@@ -485,7 +487,7 @@ class EntornoTatwas:
             raise ValueError("Valor de dirección vacío")
         if localizable:
             try:
-                coordenadas = ut.API_google_geocode(direccion)
+                coordenadas = api.google_geocode(direccion)
             except RuntimeError as err:
                 print(err)
                 raise RuntimeError("Error al intentar obtener las coordenadas")
@@ -535,7 +537,7 @@ class EntornoTatwas:
         latitud, longitud = ut.convertir_coordenadas(latitud, longitud)
 
         try:
-            datos = ut.API_timezonedb_get((latitud, longitud))
+            datos = api.timezonedb_get((latitud, longitud))
         except RuntimeError as err:
             print(err)
             raise RuntimeError("Error al obtener dirección y zona horaria.")
@@ -608,7 +610,7 @@ class EntornoTatwas:
             raise ValueError("No se han fijado las coordenadas")
 
         if self._fecha_sol is None:
-            fechahora_actual = ut.obtener_fechahora(self._zona_horaria)
+            fechahora_actual = fh.obtener_fechahora(self._zona_horaria)
             fecha_sol = fechahora_actual.date()
             fecha_sol_ayer = (fechahora_actual - dt.timedelta(days=1)).date() 
         else:
@@ -616,8 +618,8 @@ class EntornoTatwas:
 
         try:
             fechahoras_eventos_sol = \
-                ut.API_sunrise_sunset(self._coordenadas["lat"], 
-                                      self._coordenadas["lng"], fecha_sol)
+                api.sunrise_sunset(self._coordenadas["lat"], 
+                                   self._coordenadas["lng"], fecha_sol)
             
             self._fechahoras_eventos_sol = \
                 {evento: self._zona_horaria.fromutc(fhora.replace(tzinfo=None)) 
@@ -625,10 +627,9 @@ class EntornoTatwas:
                         if evento in self._EVENTOS_SOL_PARA_TATWAS}
 
             if self._fecha_sol is None:
-                fh_evts_sol_ayer = \
-                    ut.API_sunrise_sunset(self._coordenadas["lat"], 
-                                          self._coordenadas["lng"], 
-                                          fecha_sol_ayer)
+                fh_evts_sol_ayer = api.sunrise_sunset(self._coordenadas["lat"], 
+                                                      self._coordenadas["lng"],
+                                                      fecha_sol_ayer)
     
                 for evento, fechahora in self._fechahoras_eventos_sol.items():
                     if fechahora_actual < fechahora:
@@ -657,7 +658,7 @@ class EntornoTatwas:
         if self._fechahoras_eventos_sol is None:
             raise ValueError("No se han obtenido las horas de eventos del sol")
   
-        self._fechahora_tw = ut.combinar_fecha_hora(self._fecha_tw,
+        self._fechahora_tw = fh.combinar_fecha_hora(self._fecha_tw,
                                                     self._hora_tw,
                                                     self._zona_horaria)
         self._tatwas = dict()
