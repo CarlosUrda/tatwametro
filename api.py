@@ -37,7 +37,8 @@ SOL_API_URL            = "https://api.sunrise-sunset.org/json"
 GC_GOOGLE_API_URL      = "https://maps.googleapis.com/maps/api/geocode/json"
 TZ_GOOGLE_API_URL      = "https://maps.googleapis.com/maps/api/timezone/json"
 GET_TIMEZONEDB_API_URL = "http://api.timezonedb.com/v2/get-time-zone"
-
+GC_MAPQUEST_API_URL    = "http://www.mapquestapi.com/geocoding/v1/address"
+GCI_MAPQUEST_API_URL   = "http://www.mapquestapi.com/geocoding/v1/reverse"
 
 
 def timezonedb_get(localizacion, timestamp=None):
@@ -183,6 +184,7 @@ def google_geocode(localizacion):
     Excepciones:
         RuntimeError en caso de no obtener resultado de la API. Contiene
             el tipo de error devuelto por la API.
+        TypeError si la localización está en un formato incorrecto.
     
     Mejoras:
         Tener en cuenta los parámetros result_type y location_type de
@@ -200,6 +202,9 @@ def google_geocode(localizacion):
                 "{},{}".format(localizacion[0], localizacion[1])
         except (TypeError, IndexError):
             raise TypeError("Formato de localización incorrecto.")
+        
+        if len(localizacion) != 2:
+            raise TypeError("Debes introducir solo dos coordenadas.")
     
     res = requests.get(GC_GOOGLE_API_URL, parametros_url).json()
     if res["status"] != "OK":
@@ -210,6 +215,68 @@ def google_geocode(localizacion):
     else:
         return (res["results"][0]["geometry"]["location"]["lat"],
                 res["results"][0]["geometry"]["location"]["lng"])
+
+
+
+def mapquest_geocoding(localizacion):
+    """
+    Uso de API Mapquest Geocode 
+    http://www.mapquestapi.com/geocoding/v1/reverse
+    http://www.mapquestapi.com/geocoding/v1/address
+
+    Argumentos:
+        localizacion: puede ser alguno de estos valores:
+            lista [latitud, longitud] => obtener una dirección.
+            dirección str => obtener unas coordenadas.
+
+    Retorno:
+        Diccionario con los siguientes campos:
+        "direccion": str con la dirección encontrada.
+        "coordenadas": tupla (latitud, longitud) de coordenadas.
+        "mapa_url": dirección del mapa de la localización.
+        "copyright": información del copyright.
+
+    Excepciones:
+        RuntimeError en caso de no obtener resultado de la API. Contiene
+            el tipo de error devuelto por la API.
+        TypeError si la localizaión está en un formato incorrecto.
+    """
+    parametros_url = {"key": key.MAPQUEST_API_KEY}
+    
+    if isinstance(localizacion, str):
+        url = GC_MAPQUEST_API_URL
+        parametros_url["location"] = localizacion
+        parametros_url["ignoreLatLngInput"] = "true"
+    else:
+        try:
+            parametros_url["location"] = \
+                "{},{}".format(localizacion[0], localizacion[1])
+        except (TypeError, IndexError):
+            raise TypeError("Formato de localización incorrecto.")
+        
+        if len(localizacion) != 2:
+            raise TypeError("Debes introducir solo dos coordenadas.")
+        
+        url = GCI_MAPQUEST_API_URL
+    
+    res = requests.get(url, parametros_url).json()
+    if res["info"]["statuscode"] != 0:
+        raise RuntimeError("Error API Mapquest: ({}) {}"
+                            .format(res["info"]["statuscode"], 
+                                    res["info"]["messages"]))
+   
+    loc = res["results"][0]["locations"][0]
+    direccion = "{}{}{}{}{}{}{}".format(loc["street"], 
+                    '(' + loc["postalCode"] + ')' if loc["postalCode"] else "", 
+                    ", " + loc["adminArea6"] if loc["adminArea6"] else "",
+                    ", " + loc["adminArea5"] if loc["adminArea5"] else "",
+                    ", " + loc["adminArea4"] if loc["adminArea4"] else "",
+                    ", " + loc["adminArea3"] if loc["adminArea3"] else "", 
+                    ", " + loc["adminArea1"] if loc["adminArea1"] else "") 
+    coordenadas = loc["latLng"]["lat"], loc["latLng"]["lng"]
+
+    return {"direccion": direccion, "coordenadas": coordenadas, 
+            "mapa_url": loc["mapUrl"], "copyright": res["info"]["copyright"]}
 
 
 

@@ -16,7 +16,6 @@ común para escribir logs.
 - Gestión correcta de excepciones.
 - Pylint
 - Mejorar documentación.
-- Crear paquete api a partir de util.py
 - No se puede acceder al resultado de los tatwas mediante _tatwas.
 - Guardar zona horaria como tz.timezone en lugar de como cadena.
 - Mirar el argumento final de localize.

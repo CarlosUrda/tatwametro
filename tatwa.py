@@ -217,7 +217,7 @@ class Tatwa:
         return self.nombre.capitalize()
         
     def __repr__(self):
-        return "{}, {} ({})".format(self, self.posicion, self.ciclo) 
+        return "{} ({}/{})".format(self, self.posicion, self.ciclo) 
 
 
     def distancia(self, tatwa):
