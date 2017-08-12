@@ -259,13 +259,15 @@ def mapquest_geocoding(localizacion):
         
         url = GCI_MAPQUEST_API_URL
     
-    res = requests.get(url, parametros_url).json()
-    if res["info"]["statuscode"] != 0:
-        raise RuntimeError("Error API Mapquest: ({}) {}"
-                            .format(res["info"]["statuscode"], 
-                                    res["info"]["messages"]))
+    res = requests.get(url, parametros_url)
    
-    loc = res["results"][0]["locations"][0]
+    try:
+        res.raise_for_status()
+    except requests.HTTPError as err:
+        print(err) #Log
+        raise RuntimeError("Error API Mapquest")
+   
+    loc = res.json()["results"][0]["locations"][0]
     direccion = "{}{}{}{}{}{}{}".format(loc["street"], 
                     '(' + loc["postalCode"] + ')' if loc["postalCode"] else "", 
                     ", " + loc["adminArea6"] if loc["adminArea6"] else "",
