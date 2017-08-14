@@ -41,15 +41,16 @@ def main():
     coordenadas = ut.obtener_dato("Introduce coordenadas (latitud, longitud): ",
                                   ut.evaluar_coordenadas)
     entorno_tw.fijar_coordenadas(*coordenadas)
-    print("Coordenadas fijadas: {} => {}\n"
-          .format(entorno_tw.coordenadas, entorno_tw.direccion))
+    print("Coordenadas fijadas (gracias a https://timezonedb.com/api): {} =>"
+          " {}\n".format(entorno_tw.coordenadas, entorno_tw.direccion))
 
     entorno_tw.fecha_sol = \
         ut.obtener_dato("Introduce fecha salida del sol [DD-MM-YYYY] (fecha"
                         " última salida por defecto): ",
                         lambda x: ut.evaluar_fechahora(x, "%d-%m-%Y"), fin="")
 
-    print("\nObteniendo las horas de salida del sol....\n")
+    print("\nObteniendo horas de salida del sol (gracias a"
+          " https://sunrise-sunset.org/api)....\n")
     entorno_tw.actualizar_fechahoras_eventos_sol()
     for ev, fechahora_evento_sol in entorno_tw._fechahoras_eventos_sol.items():
         print("Fecha {} {}"

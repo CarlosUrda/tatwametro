@@ -240,6 +240,11 @@ def mapquest_geocoding(localizacion):
         RuntimeError en caso de no obtener resultado de la API. Contiene
             el tipo de error devuelto por la API.
         TypeError si la localizaión está en un formato incorrecto.
+
+    Mejoras:
+        Devolver todas las localizaciones encontradas, no solo la primera.
+        Gestión de errores cuando no hay HTTPError (igual que hecho
+        en google)
     """
     parametros_url = {"key": key.MAPQUEST_API_KEY}
     
