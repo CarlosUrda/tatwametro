@@ -32,9 +32,9 @@ def main():
     Función principal
     """
     ancho_pantalla = 79
-    print("*" * ancho_pantalla,
+    print("", "*" * ancho_pantalla,
           "  T A T W Á M E T R O  ".center(ancho_pantalla, "*"),
-          "*" * ancho_pantalla, "\n", sep = "\n")
+          "*" * ancho_pantalla, "", sep = "\n")
 
     entorno_tw = tw.EntornoTatwas()
 
@@ -72,7 +72,7 @@ def main():
     
     print(" INFORMACIÓN DE LOS TATWAS CALCULADOS ({}) "
           .format(entorno_tw._fechahora_tw.strftime("%H:%M:%S | %d/%m/%Y"))
-          .center(ancho_pantalla, "·"))
+          .center(ancho_pantalla, "·"), "\n")
     for ev, tatwa in entorno_tw._tatwas.items():
         print("*", api.EVENTOS_SOL_DESCRIPCION[ev].capitalize())
         if tatwa is None:
