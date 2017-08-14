@@ -261,7 +261,7 @@ def mapquest_geocoding(localizacion):
     
     res = requests.get(url, parametros_url)
    
-    try:
+    try:# Comparar mejor el status_code != 0
         res.raise_for_status()
     except requests.HTTPError as err:
         print(err) #Log

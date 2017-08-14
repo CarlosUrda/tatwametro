@@ -24,7 +24,7 @@ común para escribir logs.
 import util as ut
 import tatwa as tw
 import datetime as dt
-
+import api
 
 
 def main():
@@ -51,12 +51,13 @@ def main():
 
     print("\nObteniendo las horas de salida del sol....\n")
     entorno_tw.actualizar_fechahoras_eventos_sol()
-    fechahora_salida_sol = entorno_tw._fechahoras_eventos_sol["salida"]
-    print("Fecha de salida del sol: {}\n"
-          .format(fechahora_salida_sol.strftime("%H:%M:%S | %d/%m/%Y")))
+    for ev, fechahora_evento_sol in entorno_tw._fechahoras_eventos_sol.items():
+        print("Fecha {} {}"
+              .format(api.EVENTOS_SOL_DESCRIPCION[ev].ljust(35, '.'), 
+                      fechahora_evento_sol.strftime("%H:%M:%S | %d/%m/%Y")))
     
     entorno_tw.hora_tw = \
-        ut.obtener_dato("Introduce la hora a calcular tatwa [HH:MM:SS] (hora"
+        ut.obtener_dato("\nIntroduce la hora a calcular tatwa [HH:MM:SS] (hora"
                         " actual por defecto): ",
                         lambda x: ut.evaluar_fechahora(x, "%H:%M:%S").time(), 
                         fin="")
@@ -69,24 +70,26 @@ def main():
     print("\nCalculando los tatwas....\n")
     entorno_tw.calcular_tatwas()
     
-    print(" INFORMACIÓN DEL TATWA CALCULADO ({}) "
-          .format(entorno_tw._fechahora_tw.strftime("%H:%M:%S %d/%m/%Y"))
+    print(" INFORMACIÓN DE LOS TATWAS CALCULADOS ({}) "
+          .format(entorno_tw._fechahora_tw.strftime("%H:%M:%S | %d/%m/%Y"))
           .center(ancho_pantalla, "·"))
-    if entorno_tw._tatwas["salida"] is None:
-        print("El tatwa no puede ser calculado: fechas incoherentes")
-    else:
-        print("Nombre:", entorno_tw._tatwas["salida"]["tatwa"])
-        print("Posición/Ciclo: {} / {}"
-              .format(entorno_tw._tatwas["salida"]["tatwa"].posicion,
-                      entorno_tw._tatwas["salida"]["tatwa"].ciclo))
-        print("Hora inicio:", 
-              entorno_tw._tatwas["salida"]["fechahora_inicio"].time())
-        print("Hora fin:", 
-              entorno_tw._tatwas["salida"]["fechahora_fin"].time())
-        segundos_restantes = entorno_tw._tatwas["salida"]["segundos_restantes"]
-        print("Tiempo restante:", 
-            (dt.datetime.min + segundos_restantes).strftime("%M:%S")) 
-
+    for ev, tatwa in entorno_tw._tatwas.items():
+        print("*", api.EVENTOS_SOL_DESCRIPCION[ev].capitalize())
+        if tatwa is None:
+            print("El tatwa de no puede ser calculado: fechas incoherentes")
+        else:
+            ancho = 20
+            print("\tNombre".ljust(ancho, '.'), tatwa["tatwa"])
+            print("\tPosición / Ciclo".ljust(ancho, '.'),  
+                  "{} / {}".format(tatwa["tatwa"].posicion, 
+                                   tatwa["tatwa"].ciclo))
+            print("\tHora inicio".ljust(ancho, '.'), 
+                  tatwa["fechahora_inicio"].time())
+            print("\tHora fin".ljust(ancho, '.'), 
+                  tatwa["fechahora_fin"].time())
+            print("\tTiempo restante".ljust(ancho, '.'), (dt.datetime.min 
+                              + tatwa["segundos_restantes"]).strftime("%M:%S")) 
+        print("")
 
 
 if __name__ in ("__main__", "__console__"):
