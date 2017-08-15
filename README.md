@@ -1,5 +1,5 @@
 # Tatwámetro
-## Implementación de un tatwámetro para el cálculo de tatwas.
+**Implementación de un tatwámetro para el cálculo de tatwas**.
 
 ### Requisitos
 El proyecto se ha realizado usando las versiones de herramientas y módulos (versiones anteriores no han sido probadas):
