@@ -21,7 +21,7 @@ cd tatwametro
 
 Para ejecutarlo se puede usar el intérprete Python 3.
 
-`python3 tatwametro`
+`python3 tatwametro.py`
 
 o (en Linux) configurar el archivo *tatwametro.py* como ejecutable y ejecutarlo directamente:
 ```
