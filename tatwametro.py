@@ -41,8 +41,8 @@ def main():
     coordenadas = ut.obtener_dato("Introduce coordenadas (latitud, longitud): ",
                                   ut.evaluar_coordenadas)
     entorno_tw.fijar_coordenadas(*coordenadas)
-    print("Coordenadas fijadas (gracias a https://timezonedb.com/api): {} =>"
-          " {}\n".format(entorno_tw.coordenadas, entorno_tw.direccion))
+    print("\nCoordenadas fijadas (gracias a https://timezonedb.com/api):\n"
+          "\t{} => {}\n".format(entorno_tw.coordenadas, entorno_tw.direccion))
 
     entorno_tw.fecha_sol = \
         ut.obtener_dato("Introduce fecha salida del sol [DD-MM-YYYY] (fecha"
