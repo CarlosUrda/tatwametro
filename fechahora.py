@@ -65,9 +65,6 @@ def obtener_actual_timestamp(modo="ntp"):
     elif modo == "api":
         try:
             return api.timezonedb_get("UTC")["timestamp"]
-        except TypeError as err:
-            print(err) #Log
-            raise TypeError("Zona horaria incorrecta")
         except RuntimeError as err:
             print(err) #Log
             raise RuntimeError("Error al acceder al API TimeZoneDB")
