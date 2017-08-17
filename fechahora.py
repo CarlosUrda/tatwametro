@@ -49,7 +49,8 @@ def obtener_actual_timestamp(modo="ntp"):
 
     Argumentos:
         modo: "ntp" si se usa el servidor NTP.
-              "api" si se usa la api TimeZoneDB
+              "api" si se usa la api TimeZoneDB.
+              "local" si se usa la máquina local.
     Retorno:
         Número de segundos representando el timestamp UTC actual.
 
@@ -62,14 +63,18 @@ def obtener_actual_timestamp(modo="ntp"):
         except ntplib.NTPException as err:
             print(err) #Log
             raise RuntimeError("Error al acceder al servidor NTP")
-    elif modo == "api":
+    
+    if modo == "api":
         try:
             return api.timezonedb_get("UTC")["timestamp"]
         except RuntimeError as err:
             print(err) #Log
             raise RuntimeError("Error al acceder al API TimeZoneDB")
-    else:
-        raise TypeError("Argumento modo {} incorrecto".format(modo))
+    
+    if modo == "local":
+        return dt.datetime.utcnow().timestamp()
+    
+    raise TypeError("Argumento modo {} incorrecto".format(modo))
 
 
 
