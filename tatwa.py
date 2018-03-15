@@ -17,7 +17,7 @@ class Tatwa:
     """
     
     # Constantes de clase
-    SEGUNDOS_TATWA = 24 * 60 #+ 20
+    SEGUNDOS_TATWA = 24 * 60 #+ 20 26.182 28.8 22.154 20.5714
     NOMBRES_TATWAS = ("akash", "vayu", "tejas", "prithvi", "apas") 
     
 
@@ -410,9 +410,8 @@ class EntornoTatwas:
     de tatwas
     """
     
-    _EVENTOS_SOL_PARA_TATWAS = ("salida", "amanecer_civil", 
-                                "amanecer_nautico", "amanecer_astronomico")
-
+    _EVENTOS_SOL_PARA_TATWAS = ("salida", "amanecer_astronomico")
+                                #"amanecer_civil", "amanecer_nautico")
 
     def __init__(self):
         """

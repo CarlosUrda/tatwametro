@@ -7,6 +7,7 @@ Módulo con funciones de utilidades sobre fechas.
 import datetime as dt
 import pytz as tz
 import ntplib
+import api
 
 NTP_URL = "europe.pool.ntp.org"
 
@@ -42,20 +43,38 @@ def restar_horas(hora1, hora2, es_mismo_dia=True):
 
 
 
-def obtener_actual_timestamp():
+def obtener_actual_timestamp(modo="ntp"):
     """
     Obtener el actual timestamp UTC.
 
+    Argumentos:
+        modo: "ntp" si se usa el servidor NTP.
+              "api" si se usa la api TimeZoneDB.
+              "local" si se usa la máquina local.
     Retorno:
         Número de segundos representando el timestamp UTC actual.
 
     Excepciones:
         RuntimeError si no se obtiene la hora del servidor ntp.
     """
-    try:
-        return ntplib.NTPClient().request(NTP_URL).tx_time
-    except ntplib.NTPException as err:
-        raise RuntimeError(err)
+    if modo == "ntp":
+        try:
+            return ntplib.NTPClient().request(NTP_URL).tx_time
+        except ntplib.NTPException as err:
+            print(err) #Log
+            raise RuntimeError("Error al acceder al servidor NTP")
+    
+    if modo == "api":
+        try:
+            return api.timezonedb_get("UTC")["timestamp"]
+        except RuntimeError as err:
+            print(err) #Log
+            raise RuntimeError("Error al acceder al API TimeZoneDB")
+    
+    if modo == "local":
+        return dt.datetime.utcnow().timestamp()
+    
+    raise TypeError("Argumento modo {} incorrecto".format(modo))
 
 
 
