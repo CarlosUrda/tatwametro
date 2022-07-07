@@ -36,7 +36,7 @@ EVENTOS_SOL_DESCRIPCION = \
 SOL_API_URL            = "https://api.sunrise-sunset.org/json"
 GC_GOOGLE_API_URL      = "https://maps.googleapis.com/maps/api/geocode/json"
 TZ_GOOGLE_API_URL      = "https://maps.googleapis.com/maps/api/timezone/json"
-GET_TIMEZONEDB_API_URL = "http://api.timezonedb.com/v2/get-time-zone"
+GET_TIMEZONEDB_API_URL = "http://api.timezonedb.com/v2.1/get-time-zone"
 GC_MAPQUEST_API_URL    = "http://www.mapquestapi.com/geocoding/v1/address"
 GCI_MAPQUEST_API_URL   = "http://www.mapquestapi.com/geocoding/v1/reverse"
 
@@ -73,7 +73,7 @@ def timezonedb_get(localizacion, timestamp=None):
     parametros_url = {"format": "json", "key": key.TIMEZONEDB_API_KEY, 
                       "fields": "timestamp,zoneName,countryCode,countryName"
                                 ",gmtOffset,dst"}
-    
+
     if isinstance(localizacion, str):
         parametros_url["by"] = "zone" 
         parametros_url["zone"] = localizacion

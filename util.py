@@ -7,7 +7,7 @@ Módulo con utilidades generales.
 
 # imports
 import datetime as dt
-from collections import Sequence
+from collections.abc import Sequence
 from numbers import Number
 from ast import literal_eval
 
